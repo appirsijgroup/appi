@@ -219,7 +219,7 @@ export default function JadwalSesiPage() {
                     <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
                         Jadwal & <span className="text-teal-400">Sesi</span>
                     </h1>
-                    <p className="text-sm text-gray-400 mt-1 font-medium">Kelola jadwal kegiatan dan sesi presensi karyawan secara terpusat.</p>
+                    <p className="text-sm text-white/50 mt-1 font-bold">Kelola jadwal kegiatan dan sesi presensi karyawan secara terpusat.</p>
                 </div>
                 <button
                     onClick={() => {
@@ -237,7 +237,7 @@ export default function JadwalSesiPage() {
                 <div className="bg-white/5 backdrop-blur-sm rounded-lg p-5 border border-white/10">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-xs text-gray-400 uppercase tracking-wide">Total Kegiatan</p>
+                            <p className="text-[10px] text-teal-400 font-black uppercase tracking-widest">Total Kegiatan</p>
                             <p className="text-2xl font-bold text-white mt-1">{totalActivities}</p>
                         </div>
                         <CalendarIcon className="w-10 h-10 text-teal-400 opacity-50" />
@@ -247,7 +247,7 @@ export default function JadwalSesiPage() {
                 <div className="bg-white/5 backdrop-blur-sm rounded-lg p-5 border border-white/10">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-xs text-gray-400 uppercase tracking-wide">Kegiatan Hari Ini</p>
+                            <p className="text-[10px] text-blue-400 font-black uppercase tracking-widest">Kegiatan Hari Ini</p>
                             <p className="text-2xl font-bold text-white mt-1">{todayActivities}</p>
                         </div>
                         <ClockIcon className="w-10 h-10 text-blue-400 opacity-50" />
@@ -257,7 +257,7 @@ export default function JadwalSesiPage() {
                 <div className="bg-white/5 backdrop-blur-sm rounded-lg p-5 border border-white/10">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-xs text-gray-400 uppercase tracking-wide">Total Sesi</p>
+                            <p className="text-[10px] text-purple-400 font-black uppercase tracking-widest">Total Sesi</p>
                             <p className="text-2xl font-bold text-white mt-1">{totalSessions}</p>
                         </div>
                         <UsersIcon className="w-10 h-10 text-purple-400 opacity-50" />
@@ -267,7 +267,7 @@ export default function JadwalSesiPage() {
                 <div className="bg-white/5 backdrop-blur-sm rounded-lg p-5 border border-white/10">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-xs text-gray-400 uppercase tracking-wide">Sesi Hari Ini</p>
+                            <p className="text-[10px] text-pink-400 font-black uppercase tracking-widest">Sesi Hari Ini</p>
                             <p className="text-2xl font-bold text-white mt-1">{todaySessions}</p>
                         </div>
                         <ClockIcon className="w-10 h-10 text-pink-400 opacity-50" />

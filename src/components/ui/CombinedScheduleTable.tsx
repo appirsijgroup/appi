@@ -56,14 +56,14 @@ export const CombinedScheduleTable: React.FC<CombinedScheduleTableProps> = ({ it
                                             <span className="text-sm font-bold text-white group-hover:text-teal-300 transition-colors uppercase tracking-tight">
                                                 {item.name}
                                             </span>
-                                            <span className="text-[10px] text-gray-400 uppercase font-medium mt-0.5">
+                                            <span className="text-[10px] text-white/50 uppercase font-black mt-1 tracking-wider">
                                                 {item.kind === 'activity' ? 'Kegiatan Terjadwal' : 'Sesi Presensi Tim'}
                                             </span>
                                         </div>
                                     </td>
                                     <td className="px-4 py-4 whitespace-nowrap">
                                         <div className="flex flex-col gap-0.5">
-                                            <div className="text-sm font-semibold text-gray-200">{formattedDate}</div>
+                                            <div className="text-sm font-black text-white">{formattedDate}</div>
                                             <div className="text-xs text-teal-400/80 font-medium flex items-center gap-1.5">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
                                                 {item.startTime} - {item.endTime}
@@ -79,13 +79,9 @@ export const CombinedScheduleTable: React.FC<CombinedScheduleTableProps> = ({ it
                                         </span>
                                     </td>
                                     <td className="px-4 py-4 whitespace-nowrap">
-                                        {item.mode ? (
-                                            <span className="px-2.5 py-1 bg-white/5 text-gray-300 text-[10px] font-bold rounded-full uppercase tracking-wider border border-white/10">
-                                                {item.mode}
-                                            </span>
-                                        ) : (
-                                            <span className="text-gray-600 text-xs font-medium italic">Universal</span>
-                                        )}
+                                        <span className="px-2.5 py-1 bg-white/10 text-white text-[10px] font-black rounded-full uppercase tracking-wider border border-white/20 shadow-sm">
+                                            {item.mode || 'Universal'}
+                                        </span>
                                     </td>
                                     <td className="px-4 py-4 whitespace-nowrap">
                                         <div className="flex items-center justify-center gap-2">
