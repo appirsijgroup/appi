@@ -21,13 +21,13 @@
     "jspdf": "^4.0.0",
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.563.0",
-    "next": "15.5.9",
+    "next": "^15.5.12",
     "pg": "^8.18.0",
     "react": "19.2.3",
     "react-bootstrap": "^2.10.10",
     "react-dom": "19.2.3",
     "recharts": "^3.6.0",
-    "xlsx": "^0.18.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^4.3.6",
     "zustand": "^5.0.9"
   },
@@ -40,7 +40,7 @@
     "@types/react": "^19",
     "@types/react-bootstrap": "^1.0.1",
     "@types/react-dom": "^19",
-    "drizzle-kit": "^0.31.8",
+    "drizzle-kit": "^0.31.9",
     "eslint": "^9",
     "eslint-config-next": "15.5.9",
     "sharp": "^0.34.5",
@@ -48,5 +48,8 @@
     "terser-webpack-plugin": "^5.3.16",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "esbuild": "^0.25.0"
   }
 }
