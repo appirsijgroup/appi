@@ -5,7 +5,7 @@ import type { Activity, TeamAttendanceSession, TeamAttendanceRecord } from '@/ty
 interface ActivityState {
     activities: Activity[];
     teamAttendanceSessions: TeamAttendanceSession[];
-    teamAttendanceRecords: TeamAttendanceRecord[]; // ⚡ TAMBAH: Records presensi
+    teamAttendanceRecords: TeamAttendanceRecord[];
     isLoadingTeamAttendance: boolean;
     isLoadingActivities: boolean;
     teamAttendanceError: string | null;
@@ -19,9 +19,9 @@ interface ActivityState {
     deleteTeamAttendanceSession: (sessionId: string) => Promise<void>;
     loadTeamAttendanceSessions: (creatorId?: string) => Promise<void>;
     loadActivities: (employeeId?: string, creatorId?: string) => Promise<void>;
-    // ⚡ TAMBAH: Fungsi helper untuk cek dan get attendance records
     hasUserAttendedSession: (sessionId: string, userId: string) => Promise<boolean>;
     getAttendanceRecordsForSession: (sessionId: string) => Promise<TeamAttendanceRecord[]>;
+    submitBatchAttendance: (sessionId: string, userIds: string[]) => Promise<void>;
 }
 
 export const useActivityStore = create<ActivityState>()(
@@ -29,34 +29,26 @@ export const useActivityStore = create<ActivityState>()(
         (set, get) => ({
             activities: [],
             teamAttendanceSessions: [],
-            teamAttendanceRecords: [], // ⚡ TAMBAH: Initialize records array
+            teamAttendanceRecords: [],
             isLoadingTeamAttendance: false,
             isLoadingActivities: false,
             teamAttendanceError: null,
             activitiesError: null,
             addActivity: async (activity) => {
                 try {
-                    // ⚡ CRITICAL: Insert ke Database dulu, baru update local state
                     const { createActivity: createService } = await import('@/services/scheduledActivityService');
-
-                    // Insert ke Database
                     const createdActivity = await createService(activity);
-
-                    // Setelah berhasil insert ke Database, update local state
                     set((state) => ({ activities: [...state.activities, createdActivity] }));
                 } catch (error) {
                     console.error('Failed to create activity:', error);
-                    throw error; // Re-throw agar component bisa handle error
+                    throw error;
                 }
             },
 
             updateActivity: async (activityId, updates) => {
                 try {
-                    // ⚡ UPDATE: Update ke Database dulu
                     const { updateActivity: updateService } = await import('@/services/scheduledActivityService');
                     await updateService(activityId, updates);
-
-                    // Then update local state
                     set((state) => ({
                         activities: state.activities.map(act => act.id === activityId ? { ...act, ...updates } : act)
                     }));
@@ -68,11 +60,8 @@ export const useActivityStore = create<ActivityState>()(
 
             deleteActivity: async (activityId) => {
                 try {
-                    // ⚡ UPDATE: Delete dari Database dulu
                     const { deleteActivity: deleteService } = await import('@/services/scheduledActivityService');
                     await deleteService(activityId);
-
-                    // Then update local state
                     set((state) => ({
                         activities: state.activities.filter(act => act.id !== activityId)
                     }));
@@ -83,35 +72,25 @@ export const useActivityStore = create<ActivityState>()(
             },
             addTeamAttendanceSessions: async (sessions) => {
                 try {
-                    // ⚡ CRITICAL: Insert ke Database dulu, baru update local state
                     const { createTeamAttendanceSession: createService } = await import('@/services/teamAttendanceService');
-
-                    // Insert semua sessions ke Database
                     const createdSessions = await Promise.all(
                         sessions.map(session => createService(session))
                     );
-
-                    // Setelah berhasil insert ke Database, update local state
                     set((state) => ({
                         teamAttendanceSessions: [...state.teamAttendanceSessions, ...createdSessions]
                     }));
                 } catch (error) {
                     console.error('Failed to create team attendance sessions:', error);
-                    throw error; // Re-throw agar component bisa handle error
+                    throw error;
                 }
             },
 
-            // ⚡ UPDATE: Fungsi baru untuk create attendance record (ganti updateTeamAttendanceSession)
             createTeamAttendanceRecord: async (record) => {
                 try {
-                    // Insert to Database first
                     const { createTeamAttendanceRecord: createService } = await import('@/services/teamAttendanceService');
                     const newRecord = await createService(record);
-
-                    // Then update local state
                     set((state) => ({
                         teamAttendanceRecords: [...state.teamAttendanceRecords, newRecord],
-                        // ⚡ UPDATE: Increment presentCount untuk session terkait
                         teamAttendanceSessions: state.teamAttendanceSessions.map(sess =>
                             sess.id === record.sessionId
                                 ? { ...sess, presentCount: (sess.presentCount || 0) + 1 }
@@ -125,11 +104,8 @@ export const useActivityStore = create<ActivityState>()(
 
             updateTeamAttendanceSessionData: async (sessionId, updates) => {
                 try {
-                    // Update to Database first
                     const { updateTeamAttendanceSessionData: updateService } = await import('@/services/teamAttendanceService');
                     await updateService(sessionId, updates);
-
-                    // Then update local state
                     set((state) => ({
                         teamAttendanceSessions: state.teamAttendanceSessions.map(sess =>
                             sess.id === sessionId ? { ...sess, ...updates } : sess
@@ -142,14 +118,10 @@ export const useActivityStore = create<ActivityState>()(
 
             deleteTeamAttendanceSession: async (sessionId) => {
                 try {
-                    // Delete from Database first
                     const { deleteTeamAttendanceSession: deleteService } = await import('@/services/teamAttendanceService');
                     await deleteService(sessionId);
-
-                    // Then update local state
                     set((state) => ({
                         teamAttendanceSessions: state.teamAttendanceSessions.filter(sess => sess.id !== sessionId),
-                        // ⚡ TAMBAH: Hapus semua records terkait session yang dihapus
                         teamAttendanceRecords: state.teamAttendanceRecords.filter(rec => rec.sessionId !== sessionId)
                     }));
                 } catch (error) {
@@ -158,16 +130,13 @@ export const useActivityStore = create<ActivityState>()(
             },
 
             loadTeamAttendanceSessions: async (creatorId?: string) => {
-                // 🔥 Optimization: Only show loader if we have no data
                 if (get().teamAttendanceSessions.length === 0) {
                     set({ isLoadingTeamAttendance: true, teamAttendanceError: null });
                 }
 
                 try {
-                    // Dynamic import to avoid circular dependencies
                     const { getAllTeamAttendanceSessions } = await import('@/services/teamAttendanceService');
                     const sessions = await getAllTeamAttendanceSessions(creatorId);
-
                     set({
                         teamAttendanceSessions: sessions,
                         isLoadingTeamAttendance: false,
@@ -183,21 +152,17 @@ export const useActivityStore = create<ActivityState>()(
             },
 
             loadActivities: async (employeeId?: string, creatorId?: string) => {
-                // 🔥 Optimization: Only show loader if we have no data
                 if (get().activities.length === 0) {
                     set({ isLoadingActivities: true, activitiesError: null });
                 }
 
                 try {
-                    // Dynamic import to avoid circular dependencies
                     const { getAllActivities, getActivitiesForEmployee } = await import('@/services/scheduledActivityService');
                     let activities;
 
                     if (employeeId) {
-                        // getActivitiesForEmployee expects employeeId as string, not employee object
                         activities = await getActivitiesForEmployee(employeeId);
                     } else {
-                        // Get all activities (admin view) - support optional creatorId filtering
                         activities = await getAllActivities(creatorId);
                     }
 
@@ -215,7 +180,6 @@ export const useActivityStore = create<ActivityState>()(
                 }
             },
 
-            // ⚡ TAMBAH: Helper function untuk cek apakah user sudah hadir
             hasUserAttendedSession: async (sessionId: string, userId: string) => {
                 try {
                     const { hasUserAttendedSession: checkService } = await import('@/services/teamAttendanceService');
@@ -226,7 +190,6 @@ export const useActivityStore = create<ActivityState>()(
                 }
             },
 
-            // ⚡ TAMBAH: Helper function untuk get attendance records suatu session
             getAttendanceRecordsForSession: async (sessionId: string) => {
                 try {
                     const { getAttendanceRecordsForSession: getService } = await import('@/services/teamAttendanceService');
@@ -234,6 +197,59 @@ export const useActivityStore = create<ActivityState>()(
                 } catch (error) {
                     console.error('Error getting attendance records:', error);
                     return [];
+                }
+            },
+
+            submitBatchAttendance: async (sessionId: string, userIds: string[]) => {
+                try {
+                    const teamService = await import('@/services/teamAttendanceService');
+                    const store = get();
+
+                    // 1. Get Session Data and Existing Records
+                    const session = store.teamAttendanceSessions.find(s => s.id === sessionId);
+                    if (!session) throw new Error("Session not found");
+
+                    const existingRecords = await teamService.getAttendanceRecordsForSession(sessionId);
+                    const existingUserIds = new Set(existingRecords.map(r => r.userId));
+                    const newUserIdsSet = new Set(userIds);
+
+                    // 2. Determine who to ADD
+                    // We only support ADDING for now based on requirement to avoid accidental deletions until delete service is robust
+                    const toAdd = userIds.filter(uid => !existingUserIds.has(uid));
+
+                    const addedRecords: TeamAttendanceRecord[] = [];
+
+                    for (const userId of toAdd) {
+                        const timestamp = Date.now();
+                        const record = {
+                            sessionId,
+                            userId: userId,
+                            userName: 'Peserta',
+                            attendedAt: timestamp,
+                            sessionType: session.type,
+                            sessionDate: session.date,
+                            sessionStartTime: session.startTime,
+                            sessionEndTime: session.endTime,
+                            status: 'hadir'
+                        };
+
+                        const created = await teamService.createTeamAttendanceRecord(record as any);
+                        addedRecords.push(created);
+                    }
+
+                    // 4. Update Local State
+                    set((state) => ({
+                        teamAttendanceRecords: [...state.teamAttendanceRecords, ...addedRecords],
+                        teamAttendanceSessions: state.teamAttendanceSessions.map(sess =>
+                            sess.id === sessionId
+                                ? { ...sess, presentCount: existingUserIds.size + addedRecords.length }
+                                : sess
+                        )
+                    }));
+
+                } catch (error) {
+                    console.error('Error submitting batch attendance:', error);
+                    throw error;
                 }
             },
         }),

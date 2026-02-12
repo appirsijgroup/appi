@@ -101,6 +101,7 @@ export interface Activity {
   status: 'scheduled' | 'postponed' | 'cancelled';
   audienceType: AudienceType;
   audienceRules?: AudienceRules;
+  attendanceMode?: 'leader' | 'self'; // leader = by creator, self = by participant
   createdAt?: string;
 }
 

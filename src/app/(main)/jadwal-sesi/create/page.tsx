@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 export const dynamic = 'force-dynamic'
 
 import { UnifiedActivitySessionForm } from '@/components/features/mutabaah/UnifiedActivitySessionForm';
+import { MentorSessionForm } from '@/components/features/mutabaah/MentorSessionForm';
 import { useAuthStore, useEmployeeStore, useUIStore } from '@/store/store';
 import { useActivityStore } from '@/store/activityStore';
 import { useHospitalStore } from '@/store/hospitalStore'; // 🔥 Added
@@ -16,7 +17,7 @@ const CreateActivityPage = () => {
   const { addActivity, addTeamAttendanceSessions } = useActivityStore();
   const { loggedInEmployee } = useAuthStore();
   const { allUsersData, loadAllEmployees } = useEmployeeStore();
-  const { setGlobalLoading } = useUIStore();
+  const { setGlobalLoading, addToast } = useUIStore(); // 🔥 Added addToast
   const { hospitals, loadHospitals } = useHospitalStore(); // 🔥 Added
 
   // Transform allUsersData to array
@@ -55,11 +56,14 @@ const CreateActivityPage = () => {
 
       // Update data di halaman jadwal
       router.refresh();
+      addToast('Kegiatan berhasil dibuat!', 'success'); // 🔥 Success notification
       // Sukses - navigate ke halaman jadwal
       router.push('/jadwal-sesi');
     } catch (err) {
       console.error('Failed to create activity:', err);
-      setError(err instanceof Error ? err.message : 'Gagal membuat kegiatan. Silakan coba lagi.');
+      const errorMsg = err instanceof Error ? err.message : 'Gagal membuat kegiatan. Silakan coba lagi.';
+      setError(errorMsg);
+      addToast(errorMsg, 'error'); // 🔥 Error notification
       setIsSubmitting(false);
     }
   };
@@ -75,9 +79,13 @@ const CreateActivityPage = () => {
       };
 
       // Split sessions based on allowed types in team_attendance_sessions table
-      const teamAttendanceTypes = ['KIE', 'Doa Bersama', 'BBQ', 'UMUM'];
+      // 🔥 Support both uppercase and title case variants
+      const teamAttendanceTypes = ['KIE', 'DOA BERSAMA', 'Doa Bersama', 'BBQ', 'UMUM', 'Umum'];
 
-      const teamSessions = sessions.filter(s => teamAttendanceTypes.includes(s.type as string));
+      const teamSessions = sessions.filter(s => {
+        const sessionType = (s.type as string)?.toUpperCase();
+        return teamAttendanceTypes.some(t => t.toUpperCase() === sessionType);
+      });
 
       // 1. Handle Team Attendance Sessions (KIE, Doa Bersama, BBQ, UMUM)
       if (teamSessions.length > 0) {
@@ -95,11 +103,14 @@ const CreateActivityPage = () => {
 
       // Update data di halaman jadwal
       router.refresh();
+      addToast(`Berhasil membuat ${teamSessions.length} sesi presensi!`, 'success'); // 🔥 Success notification
       // Sukses - navigate ke halaman jadwal
       router.push('/jadwal-sesi');
     } catch (err) {
       console.error('Failed to create sessions:', err);
-      setError(err instanceof Error ? err.message : 'Gagal membuat sesi. Silakan coba lagi.');
+      const errorMsg = err instanceof Error ? err.message : 'Gagal membuat sesi. Silakan coba lagi.';
+      setError(errorMsg);
+      addToast(errorMsg, 'error'); // 🔥 Error notification
       setIsSubmitting(false);
     }
   };
@@ -131,13 +142,23 @@ const CreateActivityPage = () => {
         </div>
       )}
 
-      <UnifiedActivitySessionForm
-        allUsers={allUsers || []}
-        hospitals={hospitals || []} // 🔥 Added
-        onCreateActivity={handleCreateActivity}
-        onCreateSessions={handleCreateSessions}
-        disabled={isSubmitting} // ⚡ Disable form saat submitting
-      />
+      {loggedInEmployee?.role === 'admin' || loggedInEmployee?.role === 'super-admin' ? (
+        <UnifiedActivitySessionForm
+          allUsers={allUsers || []}
+          hospitals={hospitals || []}
+          onCreateActivity={handleCreateActivity}
+          onCreateSessions={handleCreateSessions}
+          disabled={isSubmitting}
+          loggedInEmployee={loggedInEmployee}
+        />
+      ) : (
+        <MentorSessionForm
+          allUsers={allUsers || []}
+          onCreateSessions={handleCreateSessions}
+          disabled={isSubmitting}
+          loggedInEmployee={loggedInEmployee}
+        />
+      )}
     </div>
   );
 };

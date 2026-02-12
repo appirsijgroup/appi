@@ -22,6 +22,7 @@ interface DbTeamAttendanceSession {
     attendance_mode: TeamAttendanceSession['attendanceMode'];
     zoom_url?: string;
     youtube_url?: string;
+    presentCount?: number; // 🔥 Added from API response
 }
 
 
@@ -57,7 +58,7 @@ const mapSessionToCamelCase = (session: DbTeamAttendanceSession): TeamAttendance
     attendanceMode: session.attendance_mode,
     zoomUrl: session.zoom_url,
     youtubeUrl: session.youtube_url,
-    presentCount: 0 // Fetch separately if needed
+    presentCount: session.presentCount || 0 // 🔥 Use dynamic value
 });
 
 

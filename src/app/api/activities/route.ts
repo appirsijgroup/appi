@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        if (session.role !== 'admin' && session.role !== 'super-admin') {
+        if (session.role !== 'admin' && session.role !== 'super-admin' && !session.canBeMentor) {
             return NextResponse.json({ error: 'Higher privilege required' }, { status: 403 });
         }
 
@@ -97,7 +97,7 @@ export async function PATCH(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        if (session.role !== 'admin' && session.role !== 'super-admin') {
+        if (session.role !== 'admin' && session.role !== 'super-admin' && !session.canBeMentor) {
             return NextResponse.json({ error: 'Higher privilege required' }, { status: 403 });
         }
 
@@ -155,7 +155,7 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        if (session.role !== 'admin' && session.role !== 'super-admin') {
+        if (session.role !== 'admin' && session.role !== 'super-admin' && !session.canBeMentor) {
             return NextResponse.json({ error: 'Higher privilege required' }, { status: 403 });
         }
 

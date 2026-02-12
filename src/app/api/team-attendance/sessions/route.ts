@@ -19,25 +19,37 @@ export async function GET(request: NextRequest) {
         const creatorId = searchParams.get('creatorId');
         const date = searchParams.get('date');
 
-        let sql = 'SELECT * FROM team_attendance_sessions';
+        let sql = `
+            SELECT s.*, 
+            (SELECT COUNT(*)::int FROM team_attendance_records r WHERE r.session_id = s.id) as present_count
+            FROM team_attendance_sessions s
+        `;
         const params: any[] = [];
 
         if (creatorId && date) {
-            sql += ' WHERE creator_id = $1 AND date = $2';
+            sql += ' WHERE s.creator_id = $1 AND s.date = $2';
             params.push(creatorId, date);
         } else if (creatorId) {
-            sql += ' WHERE creator_id = $1';
+            sql += ' WHERE s.creator_id = $1';
             params.push(creatorId);
         } else if (date) {
-            sql += ' WHERE date = $1';
+            sql += ' WHERE s.date = $1';
             params.push(date);
         }
 
-        sql += ' ORDER BY date DESC, start_time DESC, created_at DESC';
+        sql += ' ORDER BY s.date DESC, s.start_time DESC, s.created_at DESC';
 
         const { rows } = await query(sql, params);
 
-        return NextResponse.json({ success: true, data: rows });
+        // Map snake_case to camelCase for frontend consistency
+        const mappedRows = rows.map(row => ({
+            ...row,
+            presentCount: row.present_count || 0,
+            manualParticipantIds: row.manual_participant_ids || [], // Ensure array
+            attendanceMode: row.attendance_mode || 'self'
+        }));
+
+        return NextResponse.json({ success: true, data: mappedRows });
     } catch (error: any) {
         console.error('❌ [API Team Attendance] GET error:', error);
         return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
@@ -52,8 +64,8 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Only admins or super-admins can create sessions
-        if (session.role !== 'admin' && session.role !== 'super-admin') {
+        // Only admins or super-admins or MENOTRS can create sessions
+        if (session.role !== 'admin' && session.role !== 'super-admin' && !session.canBeMentor) {
             return NextResponse.json({ error: 'Higher privilege required' }, { status: 403 });
         }
 
@@ -88,7 +100,7 @@ export async function PATCH(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        if (session.role !== 'admin' && session.role !== 'super-admin') {
+        if (session.role !== 'admin' && session.role !== 'super-admin' && !session.canBeMentor) {
             return NextResponse.json({ error: 'Higher privilege required' }, { status: 403 });
         }
 
@@ -144,7 +156,7 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        if (session.role !== 'admin' && session.role !== 'super-admin') {
+        if (session.role !== 'admin' && session.role !== 'super-admin' && !session.canBeMentor) {
             return NextResponse.json({ error: 'Higher privilege required' }, { status: 403 });
         }
 
@@ -155,19 +167,26 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: 'Session ID is required' }, { status: 400 });
         }
 
-        // Permission check
-        if (session.role !== 'super-admin') {
-            const { rows: existingRows } = await query(
+        // Permission check: Allow Super Admin AND Admin to delete anything
+        if (session.role !== 'super-admin' && session.role !== 'admin') {
+            const result = await query(
                 `SELECT creator_id FROM team_attendance_sessions WHERE id = $1 LIMIT 1`,
                 [id]
             );
-            const existing = existingRows[0];
+            const existing = result.rows[0];
 
             if (!existing) {
                 return NextResponse.json({ error: 'Session not found' }, { status: 404 });
             }
 
-            if (existing.creator_id !== (session.nip || session.userId)) {
+            // Debugging mismatched IDs
+            console.log(`[DELETE Session] Creator Check: Creator=${existing.creator_id}, SessionNIP=${session.nip}, SessionUserID=${session.userId}`);
+
+            // Check if current user is the creator (Robust check: Match either NIP or UUID)
+            const isCreator = (session.nip && existing.creator_id == session.nip) ||
+                (session.userId && existing.creator_id == session.userId);
+
+            if (!isCreator) {
                 return NextResponse.json({ error: 'You do not have permission to delete this session' }, { status: 403 });
             }
         }

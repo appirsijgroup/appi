@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
-import { PencilIcon, TrashIcon } from '@/components/ui/Icons';
+import { PencilIcon, TrashIcon, CheckIcon } from '@/components/ui/Icons';
+import { Eye } from 'lucide-react'; // 🔥 Import Eye
 import { Activity, TeamAttendanceSession } from '@/types';
 
 export type CombinedScheduleItem = {
@@ -20,9 +20,10 @@ interface CombinedScheduleTableProps {
     items: CombinedScheduleItem[];
     onEdit: (item: CombinedScheduleItem) => void;
     onDelete: (item: CombinedScheduleItem) => void;
+    onAttendance?: (item: CombinedScheduleItem) => void;
 }
 
-export const CombinedScheduleTable: React.FC<CombinedScheduleTableProps> = ({ items, onEdit, onDelete }) => {
+export const CombinedScheduleTable: React.FC<CombinedScheduleTableProps> = ({ items, onEdit, onDelete, onAttendance }) => {
     if (items.length === 0) {
         return (
             <div className="text-center py-12 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
@@ -85,19 +86,37 @@ export const CombinedScheduleTable: React.FC<CombinedScheduleTableProps> = ({ it
                                     </td>
                                     <td className="px-4 py-4 whitespace-nowrap">
                                         <div className="flex items-center justify-center gap-2">
+                                            {/* 🔥 Attendance Button for Leader Mode */}
+                                            {item.kind === 'session' && item.mode === 'Oleh Atasan' && onAttendance && (
+                                                <button
+                                                    onClick={() => onAttendance(item)}
+                                                    className={`p-2 rounded-xl transition-all border shadow-lg active:scale-95 group ${(item.original as any).presentCount && (item.original as any).presentCount > 0
+                                                        ? 'bg-teal-500 text-white border-teal-400 shadow-teal-500/30' // Sudah ada presensi
+                                                        : 'bg-blue-500/10 hover:bg-blue-500 text-blue-400 hover:text-white border-blue-500/30 hover:border-blue-400 hover:shadow-blue-500/20' // Belum ada
+                                                        }`}
+                                                    title={(item.original as any).presentCount > 0 ? `Lihat Presensi (${(item.original as any).presentCount} Hadir)` : "Absen Manual Peserta"}
+                                                >
+                                                    {(item.original as any).presentCount > 0 ? (
+                                                        <Eye className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                                    ) : (
+                                                        <CheckIcon className="w-4 h-4 group-hover:scale-110 transition-transform stroke-2" />
+                                                    )}
+                                                </button>
+                                            )}
+
                                             <button
                                                 onClick={() => onEdit(item)}
                                                 className="p-2 bg-teal-500/10 hover:bg-teal-500 text-teal-400 hover:text-gray-900 rounded-xl transition-all border border-teal-500/30 hover:border-teal-400 shadow-lg hover:shadow-teal-500/20 active:scale-95 group"
                                                 title="Edit"
                                             >
-                                                <Pencil className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                                <PencilIcon className="w-4 h-4 group-hover:scale-110 transition-transform" />
                                             </button>
                                             <button
                                                 onClick={() => onDelete(item)}
                                                 className="p-2 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white rounded-xl transition-all border border-red-500/30 hover:border-red-400 shadow-lg hover:shadow-red-500/20 active:scale-95 group"
                                                 title="Hapus"
                                             >
-                                                <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                                <TrashIcon className="w-4 h-4 group-hover:scale-110 transition-transform" />
                                             </button>
                                         </div>
                                     </td>

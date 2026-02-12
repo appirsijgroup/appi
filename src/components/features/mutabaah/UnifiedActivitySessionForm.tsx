@@ -35,6 +35,7 @@ interface UnifiedActivitySessionFormProps {
     initialData?: Activity | TeamAttendanceSession | null;
     isEditing?: boolean;
     disabled?: boolean;
+    loggedInEmployee?: Employee | null; // 🔥 Added
 }
 
 const ACTIVITY_TYPES: ActivitySessionType[] = ['Umum', 'Kajian Selasa', 'Pengajian Persyarikatan'];
@@ -48,6 +49,7 @@ export const UnifiedActivitySessionForm = ({
     initialData,
     isEditing = false,
     disabled = false,
+    loggedInEmployee, // 🔥 Added
 }: UnifiedActivitySessionFormProps) => {
     const router = useRouter();
 
@@ -67,7 +69,9 @@ export const UnifiedActivitySessionForm = ({
     const [selectedDays, setSelectedDays] = useState<Set<number>>(new Set());
 
     // Audience fields
-    const [audienceType, setAudienceType] = useState<'rules' | 'manual'>('rules');
+    // 🔥 Mentors can only use Manual selection, not RSIJ GROUP rules
+    const canUseRulesBasedSelection = loggedInEmployee?.role === 'admin' || loggedInEmployee?.role === 'super-admin';
+    const [audienceType, setAudienceType] = useState<'rules' | 'manual'>(canUseRulesBasedSelection ? 'rules' : 'manual');
     const [selectedHospitalIds, setSelectedHospitalIds] = useState<string[]>([]); // Empty means All/RSIJ GROUP
     const [unit, setUnit] = useState('all');
     const [bagian, setBagian] = useState('all');
@@ -95,7 +99,7 @@ export const UnifiedActivitySessionForm = ({
             setDescription(isActivity ? (initialData as Activity).description || '' : '');
             setZoomUrl(initialData.zoomUrl || '');
             setYoutubeUrl(initialData.youtubeUrl || '');
-            setAttendanceMode(isSession ? (initialData as TeamAttendanceSession).attendanceMode || 'self' : 'self');
+            setAttendanceMode((initialData as any).attendanceMode || 'self');
             setIsRecurring(false);
             setSelectedDays(new Set());
             setAudienceType((initialData.audienceType as string) === 'public' ? 'rules' : (initialData.audienceType as 'rules' | 'manual') || 'rules');
@@ -132,7 +136,8 @@ export const UnifiedActivitySessionForm = ({
             setAttendanceMode('self');
             setIsRecurring(false);
             setSelectedDays(new Set());
-            setAudienceType('rules');
+            // 🔥 Set default based on user role
+            setAudienceType(canUseRulesBasedSelection ? 'rules' : 'manual');
             setSelectedHospitalIds([]);
             setUnit('all');
             setBagian('all');
@@ -140,7 +145,7 @@ export const UnifiedActivitySessionForm = ({
         }
         setParticipantSearch('');
         setError('');
-    }, [isEditing, initialData]);
+    }, [isEditing, initialData, canUseRulesBasedSelection]);
 
     // Calculate minimum allowed date (first day of current month)
     const minDate = useMemo(() => {
@@ -185,10 +190,21 @@ export const UnifiedActivitySessionForm = ({
     }, [allUsers, audienceType, selectedHospitalIds, unit, bagian, manualParticipants]);
 
     const filteredParticipants = useMemo(() => {
-        if (!participantSearch) return allUsers;
+        // 🔥 FILTER: If user is a Mentor AND NOT an Admin, only show their mentees
+        // Admin/SuperAdmin can see everyone even if they have mentor role
+        let availableUsers = allUsers;
+
+        const isStrictAdmin = loggedInEmployee?.role === 'admin' || loggedInEmployee?.role === 'super-admin';
+
+        if (!isStrictAdmin && loggedInEmployee?.canBeMentor) {
+            availableUsers = allUsers.filter(u => u.mentorId === loggedInEmployee.id);
+        }
+
+        // Then apply search filter
+        if (!participantSearch) return availableUsers;
         const search = participantSearch.toLowerCase();
-        return allUsers.filter(u => u.name.toLowerCase().includes(search) || u.id.includes(search));
-    }, [allUsers, participantSearch]);
+        return availableUsers.filter(u => u.name.toLowerCase().includes(search) || u.id.includes(search));
+    }, [allUsers, participantSearch, loggedInEmployee]);
 
     const handleParticipantToggle = (id: string) => {
         setManualParticipants(prev => {
@@ -244,27 +260,22 @@ export const UnifiedActivitySessionForm = ({
         // 🚀 FORCE UPPERCASE for Consistency
         const upperName = name.trim().toUpperCase();
 
-        // Define mapping for activity types to match DB constraints
-        const typeMapping: Record<string, string> = {
-            'UMUM': 'Umum',
-            'KAJIAN SELASA': 'Kajian Selasa',
-            'PENGAJIAN PERSYARIKATAN': 'Pengajian Persyarikatan',
-            'umum': 'Umum',
-            'kajian selasa': 'Kajian Selasa',
-            'pengajian persyarikatan': 'Pengajian Persyarikatan'
+        // 🚀 FORCE CASE for Database Consistency
+        const dbTypeMapping: Record<string, string> = {
+            'DOA BERSAMA': 'Doa Bersama',
+            'KIE': 'KIE',
+            'BBQ': 'BBQ',
+            'UMUM': 'UMUM',
+            'Kajian Selasa': 'Kajian Selasa',
+            'Pengajian Persyarikatan': 'Pengajian Persyarikatan',
+            'Umum': 'Umum'
         };
 
-        const finalType = typeMapping[type] || type;
+        const finalTypeForDb = dbTypeMapping[type] || type;
 
         if (isActivityType) {
             // Create or Update Activity
             const participantIds = audienceType === 'manual' ? Array.from(manualParticipants) : [];
-            const audienceRules: AudienceRules | undefined = audienceType === 'rules' ? {
-                hospitalIds: selectedHospitalIds.length > 0 ? selectedHospitalIds : undefined,
-                units: unit !== 'all' ? [unit] : undefined,
-                bagians: bagian !== 'all' ? [bagian] : undefined,
-            } : undefined;
-
             const activityData: Omit<Activity, 'id' | 'createdBy' | 'createdByName'> = {
                 name: upperName,
                 description: description.trim() || undefined,
@@ -273,9 +284,9 @@ export const UnifiedActivitySessionForm = ({
                 endTime,
                 zoomUrl: zoomUrl.trim() || undefined,
                 youtubeUrl: youtubeUrl.trim() || undefined,
-                activityType: finalType as Activity['activityType'],
+                activityType: finalTypeForDb as Activity['activityType'],
+                attendanceMode, // ⚡ Mode Presensi (leader/self)
                 audienceType,
-                audienceRules,
                 participantIds,
                 status: 'scheduled',
             };
@@ -283,11 +294,11 @@ export const UnifiedActivitySessionForm = ({
             onCreateActivity(activityData);
         } else {
             // Create or Update Team Attendance Session(s)
-            const baseSessionData: Omit<TeamAttendanceSession, 'id' | 'createdAt' | 'creatorId' | 'creatorName' | 'presentUserIds' | 'date'> = {
-                type: (finalType as string) === 'Umum' ? 'UMUM' : (finalType as TeamAttendanceSession['type']),
+            const baseSessionData: any = {
+                type: finalTypeForDb,
                 startTime,
                 endTime,
-                attendanceMode,
+                attendanceMode, // ⚡ Mode Presensi (leader/self)
                 audienceType,
                 zoomUrl: zoomUrl.trim() || undefined,
                 youtubeUrl: youtubeUrl.trim() || undefined,
@@ -539,20 +550,32 @@ export const UnifiedActivitySessionForm = ({
                         </div>
 
                         <div className="p-3 sm:p-5 bg-black/20 rounded-xl border border-white/5 sm:border-white/10 grow flex flex-col">
-                            <div className="flex items-center gap-4 mb-4">
-                                <SegmentedControlButton
-                                    label="RSIJ GROUP"
-                                    icon={BuildingOffice2Icon}
-                                    isActive={audienceType === 'rules'}
-                                    onClick={() => !disabled && setAudienceType('rules')}
-                                />
-                                <SegmentedControlButton
-                                    label="Manual"
-                                    icon={UserGroupIcon}
-                                    isActive={audienceType === 'manual'}
-                                    onClick={() => !disabled && setAudienceType('manual')}
-                                />
-                            </div>
+                            {canUseRulesBasedSelection ? (
+                                // Admin/Super-Admin: Show both options
+                                <div className="flex items-center gap-4 mb-4">
+                                    <SegmentedControlButton
+                                        label="RSIJ GROUP"
+                                        icon={BuildingOffice2Icon}
+                                        isActive={audienceType === 'rules'}
+                                        onClick={() => !disabled && setAudienceType('rules')}
+                                    />
+                                    <SegmentedControlButton
+                                        label="Manual"
+                                        icon={UserGroupIcon}
+                                        isActive={audienceType === 'manual'}
+                                        onClick={() => !disabled && setAudienceType('manual')}
+                                    />
+                                </div>
+                            ) : (
+                                // Mentor: Only show Manual (no toggle needed)
+                                <div className="mb-4">
+                                    <h4 className="text-lg font-semibold text-teal-300 flex items-center gap-2">
+                                        <UserGroupIcon className="w-6 h-6" />
+                                        Pilih Peserta Manual
+                                    </h4>
+                                    <p className="text-xs text-gray-400 mt-1">Pilih mentee Anda untuk mengikuti sesi ini</p>
+                                </div>
+                            )}
                             {audienceType === 'rules' && (
                                 <div className="space-y-4">
                                     <div className="space-y-2">
@@ -650,6 +673,27 @@ export const UnifiedActivitySessionForm = ({
                                         className="w-full bg-black/30 border border-white/20 rounded-lg p-2.5 text-white disabled:opacity-50"
                                         disabled={disabled}
                                     />
+                                    {/* 🔥 Mentor Helper: Select My Mentees - ONLY if NOT Admin */}
+                                    {loggedInEmployee?.canBeMentor && loggedInEmployee?.role !== 'admin' && loggedInEmployee?.role !== 'super-admin' && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const myMentees = allUsers.filter(u => u.mentorId === loggedInEmployee.id);
+                                                const newSet = new Set(manualParticipants);
+                                                myMentees.forEach(m => newSet.add(m.id));
+                                                setManualParticipants(newSet);
+                                            }}
+                                            className="text-xs text-teal-300 hover:text-teal-200 text-left font-medium py-1 px-1 transition-colors"
+                                            disabled={disabled}
+                                        >
+                                            + Pilih Semua Mentee Saya ({allUsers.filter(u => u.mentorId === loggedInEmployee.id).length})
+                                        </button>
+                                    )}
+                                    {loggedInEmployee?.canBeMentor && loggedInEmployee?.role !== 'admin' && loggedInEmployee?.role !== 'super-admin' && (
+                                        <p className="text-xs text-blue-200 italic">
+                                            💡 Sebagai Mentor, Anda hanya dapat memilih mentee Anda sendiri
+                                        </p>
+                                    )}
                                     <div className="grow overflow-y-auto border border-white/20 rounded-lg p-2 bg-black/30 space-y-1 max-h-48">
                                         {filteredParticipants.map(user => (
                                             <label key={user.id} className={`flex items-center gap-3 p-2 rounded-md hover:bg-white/10 cursor-pointer ${disabled && 'pointer-events-none opacity-50'}`}>

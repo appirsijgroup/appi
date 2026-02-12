@@ -7,6 +7,7 @@ import { useActivityStore } from '@/store/activityStore';
 import { useAppDataStore, useUIStore, useAuthStore } from '@/store/store';
 import { useHospitalStore } from '@/store/hospitalStore';
 import { UnifiedActivitySessionForm } from '@/components/features/mutabaah/UnifiedActivitySessionForm';
+import { MentorSessionForm } from '@/components/features/mutabaah/MentorSessionForm';
 import type { Activity, TeamAttendanceSession } from '@/types';
 
 export default function EditActivitySessionPage() {
@@ -160,15 +161,27 @@ export default function EditActivitySessionPage() {
                 <p className="text-gray-400 text-sm mt-1">Perbarui informasi kegiatan atau sesi presensi karyawan.</p>
             </div>
 
-            <UnifiedActivitySessionForm
-                allUsers={allUsers}
-                hospitals={hospitals}
-                initialData={initialData}
-                isEditing={true}
-                disabled={isSubmitting}
-                onCreateActivity={handleUpdateActivity}
-                onCreateSessions={handleUpdateSession}
-            />
+            {loggedInEmployee?.role === 'admin' || loggedInEmployee?.role === 'super-admin' || kind === 'activity' ? (
+                <UnifiedActivitySessionForm
+                    allUsers={allUsers}
+                    hospitals={hospitals}
+                    initialData={initialData}
+                    isEditing={true}
+                    disabled={isSubmitting}
+                    onCreateActivity={handleUpdateActivity}
+                    onCreateSessions={handleUpdateSession}
+                    loggedInEmployee={loggedInEmployee}
+                />
+            ) : (
+                <MentorSessionForm
+                    allUsers={allUsers}
+                    initialData={initialData as TeamAttendanceSession}
+                    isEditing={true}
+                    disabled={isSubmitting}
+                    onCreateSessions={handleUpdateSession}
+                    loggedInEmployee={loggedInEmployee}
+                />
+            )}
         </div>
     );
 }

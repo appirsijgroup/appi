@@ -25,6 +25,7 @@ interface DbActivity {
     status: ActivityStatus;
     audience_type: AudienceType;
     audience_rules: any;
+    attendance_mode?: 'leader' | 'self'; // 🔥 Added
     created_at: string;
 }
 
@@ -44,6 +45,7 @@ const mapDbToActivity = (dbActivity: DbActivity): Activity => ({
     status: dbActivity.status,
     audienceType: dbActivity.audience_type,
     audienceRules: dbActivity.audience_rules,
+    attendanceMode: dbActivity.attendance_mode, // 🔥 Added
     createdAt: dbActivity.created_at
 });
 
@@ -192,6 +194,7 @@ export const createActivity = async (
         status: activity.status || 'scheduled',
         audience_type: activity.audienceType,
         audience_rules: activity.audienceRules || null,
+        attendance_mode: activity.attendanceMode || 'self', // ⚡ Added persistence
     };
 
     const response = await fetch('/api/activities', {
@@ -230,6 +233,7 @@ export const updateActivity = async (
     if (updates.status !== undefined) dbData.status = (updates.status as ActivityStatus);
     if (updates.audienceType !== undefined) dbData.audience_type = updates.audienceType;
     if (updates.audienceRules !== undefined) dbData.audience_rules = updates.audienceRules;
+    if (updates.attendanceMode !== undefined) dbData.attendance_mode = updates.attendanceMode; // ⚡ Added persistence
 
     const response = await fetch('/api/activities', {
         method: 'PATCH',

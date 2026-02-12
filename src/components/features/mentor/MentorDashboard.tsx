@@ -699,9 +699,10 @@ const MenteeManagement: React.FC<{
     mentees: Employee[];
     allUsers: Employee[];
     mentorId: string;
+    mentorHospitalId?: string;
     onUpdateProfile: (userId: string, updates: Partial<Employee>) => Promise<boolean>;
     addToast?: (message: string, type: 'success' | 'error') => void;
-}> = ({ mentees, allUsers, mentorId, onUpdateProfile, addToast }) => {
+}> = ({ mentees, allUsers, mentorId, mentorHospitalId, onUpdateProfile, addToast }) => {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedToAdd, setSelectedToAdd] = useState<Set<string>>(new Set());
     const [search, setSearch] = useState('');
@@ -719,8 +720,15 @@ const MenteeManagement: React.FC<{
     const unassignedUsers = useMemo(() => {
         return allUsers
             .filter(u => !u.mentorId && u.id !== mentorId && !u.canBeMentor)
+            // 🔥 Filter by Hospital ID if available
+            .filter(u => {
+                if (!mentorHospitalId) return true;
+                // Handle both camelCase and snake_case properties just in case
+                const uHospitalId = u.hospitalId || u.hospital_id;
+                return uHospitalId === mentorHospitalId;
+            })
             .sort((a, b) => a.name.localeCompare(b.name));
-    }, [allUsers, mentorId]);
+    }, [allUsers, mentorId, mentorHospitalId]);
 
     const uniqueUnits = useMemo(() => ['all', ...Array.from(new Set(allUsers.map(u => u.unit).filter(Boolean))).sort()], [allUsers]);
     const uniqueProfessions = useMemo(() => ['all', ...Array.from(new Set(allUsers.map(u => u.profession).filter(Boolean))).sort()], [allUsers]);
@@ -1750,6 +1758,7 @@ export const MentorDashboard: React.FC<MentorDashboardProps> = ({
                         mentees={mentees}
                         allUsers={Object.values(allUsersData).map(d => d.employee)}
                         mentorId={employee.id}
+                        mentorHospitalId={employee.hospitalId || employee.hospital_id}
                         onUpdateProfile={onUpdateProfile}
                         addToast={addToast}
                     />

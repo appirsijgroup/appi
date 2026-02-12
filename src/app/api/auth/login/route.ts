@@ -84,6 +84,9 @@ export async function POST(request: NextRequest) {
       canBeBPH: employee.can_be_bph,
       functionalRoles: employee.functional_roles,
       activatedMonths: employee.activated_months,
+      mentorId: employee.mentor_id,
+      kaUnitId: employee.ka_unit_id,
+      dirutId: employee.dirut_id,
     };
 
     let token;

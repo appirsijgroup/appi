@@ -363,9 +363,15 @@ export default function MainLayoutShell({ children }: { children: React.ReactNod
             loggedInEmployee.canBeDirut;
 
         return allNavItemsRaw.filter(item => {
-            // 🔥 Super Admin & Admin gets FULL ACCESS to all menus (developer role)
+            // 🔥 Admin Dashboard: ONLY for Admin and Super Admin roles
+            // This check is strict and overrides any other permission logic
+            if (item.id === 'admin') {
+                return loggedInEmployee.role === 'admin' || loggedInEmployee.role === 'super-admin';
+            }
+
+            // 🔥 Super Admin & Admin gets FULL ACCESS to all other menus (developer role)
             if (isAdmin) {
-                return true; // Mentors/Admins see everything
+                return true;
             }
 
             // 🔥 Check if administrative account (e.g. ID 'rsijsp')
@@ -377,8 +383,6 @@ export default function MainLayoutShell({ children }: { children: React.ReactNod
                 if (!allowedIds.includes(item.id)) return false;
             }
 
-            // Hide Admin menu for non-admins
-            if (item.id === 'admin' && !isAdmin) return false;
 
             // Hide 'Jadwal & Sesi' for basic users without special assignments/roles
             if (item.id === 'jadwal-sesi' && !hasManagementRole) return false;

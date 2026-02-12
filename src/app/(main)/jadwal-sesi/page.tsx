@@ -10,6 +10,7 @@ import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import type { Activity, TeamAttendanceSession } from '@/types';
 import { CombinedScheduleTable, CombinedScheduleItem } from '@/components/ui/CombinedScheduleTable';
 import SimplePagination from '@/components/ui/SimplePagination';
+import ManualAttendanceModal from '@/components/ui/ManualAttendanceModal'; // 🔥 Added Import
 
 export default function JadwalSesiPage() {
     const { loggedInEmployee } = useAppDataStore();
@@ -25,6 +26,15 @@ export default function JadwalSesiPage() {
     }>({
         isOpen: false,
         item: null,
+    });
+
+    // ⚡ TAMBAH: State for Attendance Modal
+    const [attendanceModal, setAttendanceModal] = useState<{
+        isOpen: boolean;
+        session: TeamAttendanceSession | null;
+    }>({
+        isOpen: false,
+        session: null,
     });
 
     // ⚡ TAMBAH: Auto-load data dari Database saat halaman mount
@@ -119,6 +129,32 @@ export default function JadwalSesiPage() {
 
     const handleDeleteCancel = () => {
         setDeleteModal({ isOpen: false, item: null });
+    };
+
+    // ⚡ TAMBAH: Handle Attendance Logic
+    const handleAttendanceClick = (item: CombinedScheduleItem) => {
+        if (item.kind !== 'session') return;
+        setAttendanceModal({
+            isOpen: true,
+            session: item.original as TeamAttendanceSession
+        });
+    };
+
+    const handleAttendanceSave = async (sessionId: string, userIds: string[]) => {
+        try {
+            const { submitBatchAttendance } = useActivityStore.getState();
+            await submitBatchAttendance(sessionId, userIds);
+            addToast(`Berhasil menyimpan presensi untuk ${userIds.length} peserta`, 'success');
+
+            // Optimistic Update handled by Store
+            // Reload data removed to prevent race condition
+            // const isSuperAdmin = loggedInEmployee?.role === 'super-admin';
+            // const creatorId = isSuperAdmin ? undefined : loggedInEmployee?.id;
+            // await loadTeamAttendanceSessions(creatorId);
+        } catch (error) {
+            console.error(error);
+            addToast('Gagal menyimpan presensi', 'error');
+        }
     };
 
     const combinedItems = useMemo((): CombinedScheduleItem[] => {
@@ -382,6 +418,7 @@ export default function JadwalSesiPage() {
                     items={paginatedItems}
                     onEdit={handleEdit}
                     onDelete={handleDeleteClick}
+                    onAttendance={handleAttendanceClick} // 🔥 Pass handler
                 />
 
                 {/* Pagination Controls */}
@@ -403,6 +440,14 @@ export default function JadwalSesiPage() {
                 message={`Apakah Anda yakin ingin menghapus "${deleteModal.item?.name || 'item'}"?`}
                 confirmText="Ya, Hapus"
                 confirmColorClass="bg-red-600 hover:bg-red-500"
+            />
+
+            {/* ⚡ TAMBAH: Manual Attendance Modal */}
+            <ManualAttendanceModal
+                isOpen={attendanceModal.isOpen}
+                onClose={() => setAttendanceModal({ isOpen: false, session: null })}
+                session={attendanceModal.session}
+                onSave={handleAttendanceSave}
             />
         </div>
     );

@@ -43,6 +43,17 @@ export interface SessionPayload {
   role: string;
   hospitalId?: string; // 🔥 NEW: Track user's hospital
   managedHospitalIds?: string[];
+  canBeMentor?: boolean;
+  canBeSupervisor?: boolean;
+  canBeKaUnit?: boolean;
+  canBeManager?: boolean;
+  canBeDirut?: boolean;
+  canBeBPH?: boolean;
+  functionalRoles?: string[];
+  activatedMonths?: string[];
+  mentorId?: string;
+  kaUnitId?: string;
+  dirutId?: string;
   exp?: number;
 }
 
