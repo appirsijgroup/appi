@@ -86,8 +86,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate Hash Password
-    const tempPassword = password || Math.random().toString(36).slice(-8);
+    // Generate Hash Password - Default to NIP (employeeId) if not provided (Agreement)
+    const tempPassword = password || employeeId;
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
     // Normalize values
