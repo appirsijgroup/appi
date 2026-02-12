@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { type Employee, type Hospital } from '@/types';
+import { type Employee, type Hospital, type FunctionalRole } from '@/types';
 import EmployeeSearchableInput from '@/components/features/admin/EmployeeSearchableInput';
 import { SearchIcon } from '@/components/ui/Icons';
 import { useNotificationStore } from '@/store/notificationStore';
@@ -352,9 +352,15 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
                                         <ToggleSwitch
                                             checked={!!user.canBeBPH}
                                             onChange={async (checked) => {
-                                                const result = await onUpdateProfile(user.id, { canBeBPH: checked });
+                                                const currentRoles = user.functionalRoles || [];
+                                                const newRoles = checked
+                                                    ? (currentRoles.includes('BPH' as any) ? currentRoles : [...currentRoles, 'BPH' as any])
+                                                    : currentRoles.filter(r => r !== 'BPH');
+                                                const result = await onUpdateProfile(user.id, {
+                                                    canBeBPH: checked,
+                                                    functionalRoles: newRoles as any
+                                                });
                                                 if (!result) throw new Error('Update failed');
-                                                // Sync functionalRoles if needed
                                                 return result;
                                             }}
                                         />

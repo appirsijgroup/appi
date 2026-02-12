@@ -702,7 +702,8 @@ const MenteeManagement: React.FC<{
     mentorHospitalId?: string;
     onUpdateProfile: (userId: string, updates: Partial<Employee>) => Promise<boolean>;
     addToast?: (message: string, type: 'success' | 'error') => void;
-}> = ({ mentees, allUsers, mentorId, mentorHospitalId, onUpdateProfile, addToast }) => {
+    loggedInEmployee: Employee;
+}> = ({ mentees, allUsers, mentorId, mentorHospitalId, onUpdateProfile, addToast, loggedInEmployee }) => {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedToAdd, setSelectedToAdd] = useState<Set<string>>(new Set());
     const [search, setSearch] = useState('');
@@ -718,17 +719,33 @@ const MenteeManagement: React.FC<{
     const paginatedMentees = mentees.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     const unassignedUsers = useMemo(() => {
+        const isSuper = loggedInEmployee.role === 'super-admin' || loggedInEmployee.canBeBPH || (loggedInEmployee.functional_roles || loggedInEmployee.functionalRoles)?.includes('BPH');
+        const managedHospitalIds = loggedInEmployee.managedHospitalIds || [];
+        const isAdmin = loggedInEmployee.role === 'admin';
+
         return allUsers
-            .filter(u => !u.mentorId && u.id !== mentorId && !u.canBeMentor)
-            // 🔥 Filter by Hospital ID if available
             .filter(u => {
-                if (!mentorHospitalId) return true;
-                // Handle both camelCase and snake_case properties just in case
+                // Check both camelCase and snake_case, and ensure they are either null, undefined, or empty string
+                const mId = u.mentorId || (u as any).mentor_id;
+                return (!mId || mId === '') && u.id !== mentorId;
+            })
+            // 🔥 Filter by Hospital ID based on user access level
+            .filter(u => {
+                if (isSuper) return true;
+
                 const uHospitalId = u.hospitalId || u.hospital_id;
+
+                // For Admins, restrict to managed hospitals
+                if (isAdmin && managedHospitalIds.length > 0) {
+                    return uHospitalId && managedHospitalIds.includes(uHospitalId);
+                }
+
+                // Default behavior for mentors/standard users: filter by their own hospital
+                if (!mentorHospitalId) return true;
                 return uHospitalId === mentorHospitalId;
             })
             .sort((a, b) => a.name.localeCompare(b.name));
-    }, [allUsers, mentorId, mentorHospitalId]);
+    }, [allUsers, mentorId, mentorHospitalId, loggedInEmployee]);
 
     const uniqueUnits = useMemo(() => ['all', ...Array.from(new Set(allUsers.map(u => u.unit).filter(Boolean))).sort()], [allUsers]);
     const uniqueProfessions = useMemo(() => ['all', ...Array.from(new Set(allUsers.map(u => u.profession).filter(Boolean))).sort()], [allUsers]);
@@ -1761,6 +1778,7 @@ export const MentorDashboard: React.FC<MentorDashboardProps> = ({
                         mentorHospitalId={employee.hospitalId || employee.hospital_id}
                         onUpdateProfile={onUpdateProfile}
                         addToast={addToast}
+                        loggedInEmployee={employee}
                     />
                 )}
                 {mentorSubView === 'target' && (

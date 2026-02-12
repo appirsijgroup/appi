@@ -188,6 +188,7 @@ export const updateEmployee = async (
     if (u.canBeKaUnit !== undefined) dbUpdates.can_be_ka_unit = u.canBeKaUnit;
     if (u.canBeDirut !== undefined) dbUpdates.can_be_dirut = u.canBeDirut;
     if (u.functionalRoles !== undefined) dbUpdates.functional_roles = u.functionalRoles;
+    if (u.canBeBPH !== undefined) dbUpdates.can_be_bph = u.canBeBPH;
     if (u.locationId !== undefined) dbUpdates.location_id = u.locationId;
     if (u.locationName !== undefined) dbUpdates.location_name = u.locationName;
     if (u.signature !== undefined) dbUpdates.signature = u.signature;
@@ -205,6 +206,12 @@ export const updateEmployee = async (
     if (u.avatarUrl !== undefined) dbUpdates.avatar_url = u.avatarUrl;
     if (u.authUserId !== undefined) dbUpdates.auth_user_id = u.authUserId;
     if (u.lastAnnouncementReadTimestamp !== undefined) dbUpdates.last_announcement_read_timestamp = u.lastAnnouncementReadTimestamp;
+    if (u.nik !== undefined) (dbUpdates as any).nik = u.nik;
+    if (u.phoneNumber !== undefined) (dbUpdates as any).phone_number = u.phoneNumber;
+    if (u.address !== undefined) (dbUpdates as any).address = u.address;
+    if (u.employmentStatus !== undefined) (dbUpdates as any).employment_status = u.employmentStatus;
+    if (u.birthPlace !== undefined) (dbUpdates as any).birth_place = u.birthPlace;
+    if (u.birthDate !== undefined) (dbUpdates as any).birth_date = u.birthDate;
 
     if (Object.keys(dbUpdates).length === 0) {
         const current = await getEmployeeById(id);

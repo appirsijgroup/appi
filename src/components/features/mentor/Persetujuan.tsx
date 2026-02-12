@@ -280,7 +280,19 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
             }
 
             // 4. Admin Catch-all
-            if (isAdmin) return true;
+            if (isAdmin) {
+                // Super Admin/BPH sees everything
+                const isSuper = loggedInEmployee.role === 'super-admin' || loggedInEmployee.canBeBPH || (loggedInEmployee.functional_roles || loggedInEmployee.functionalRoles)?.includes('BPH');
+                if (isSuper) return true;
+
+                // Regular Admin shows only managed hospitals
+                const managedIds = loggedInEmployee.managedHospitalIds || [];
+                const mentee = allUsersData[s.menteeId]?.employee;
+                const hId = mentee?.hospitalId || mentee?.hospital_id;
+                if (hId && managedIds.includes(hId)) return true;
+
+                return false;
+            }
 
             return false;
         });
@@ -347,7 +359,8 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
             const canReviewReport = isPending && (
                 (s.status === 'pending_mentor' && (s.mentorId === myId || mentee?.mentorId === myId)) ||
                 (s.status === 'pending_kaunit' && (s.kaUnitId === myId || mentee?.kaUnitId === myId)) ||
-                (loggedInEmployee.role === 'admin' || loggedInEmployee.role === 'super-admin')
+                (loggedInEmployee.role === 'super-admin' || loggedInEmployee.canBeBPH || (loggedInEmployee.functional_roles || loggedInEmployee.functionalRoles)?.includes('BPH')) ||
+                (loggedInEmployee.role === 'admin' && (loggedInEmployee.managedHospitalIds || []).includes(mentee?.hospitalId || mentee?.hospital_id || ''))
             );
 
             return {
@@ -402,7 +415,18 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
                 const isOriginalMentor = r.mentorId === myId;
                 const isCurrentMentor = mentee?.mentorId === myId;
                 const isMyRequest = r.menteeId === myId;
-                return isOriginalMentor || isCurrentMentor || isMyRequest || loggedInEmployee.role === 'admin' || loggedInEmployee.role === 'super-admin';
+                const isSuper = loggedInEmployee.role === 'super-admin' || loggedInEmployee.canBeBPH || (loggedInEmployee.functional_roles || loggedInEmployee.functionalRoles)?.includes('BPH');
+                const isAdmin = loggedInEmployee.role === 'admin';
+
+                if (isOriginalMentor || isCurrentMentor || isMyRequest || isSuper) return true;
+
+                if (isAdmin) {
+                    const managedIds = loggedInEmployee.managedHospitalIds || [];
+                    const hId = mentee?.hospitalId || mentee?.hospital_id;
+                    return hId && managedIds.includes(hId);
+                }
+
+                return false;
             })
             .map((r) => {
                 const mentee = allUsersData[r.menteeId]?.employee;
@@ -417,7 +441,11 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
                     monthKey: r.date.substring(0, 7),
                     status: r.status,
                     notes: r.notes || '-',
-                    canReview: r.status === 'pending' && (allUsersData[r.menteeId]?.employee?.mentorId === myId || loggedInEmployee.role === 'admin' || loggedInEmployee.role === 'super-admin'),
+                    canReview: r.status === 'pending' && (
+                        allUsersData[r.menteeId]?.employee?.mentorId === myId ||
+                        (loggedInEmployee.role === 'super-admin' || loggedInEmployee.canBeBPH || (loggedInEmployee.functional_roles || loggedInEmployee.functionalRoles)?.includes('BPH')) ||
+                        (loggedInEmployee.role === 'admin' && (loggedInEmployee.managedHospitalIds || []).includes(allUsersData[r.menteeId]?.employee?.hospitalId || allUsersData[r.menteeId]?.employee?.hospital_id || ''))
+                    ),
                     originalData: r
                 };
             });
@@ -429,7 +457,18 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
                 const isOriginalMentor = r.mentorId === myId;
                 const isCurrentMentor = mentee?.mentorId === myId;
                 const isMyRequest = r.menteeId === myId;
-                return isOriginalMentor || isCurrentMentor || isMyRequest || loggedInEmployee.role === 'admin' || loggedInEmployee.role === 'super-admin';
+                const isSuper = loggedInEmployee.role === 'super-admin' || loggedInEmployee.canBeBPH || (loggedInEmployee.functional_roles || loggedInEmployee.functionalRoles)?.includes('BPH');
+                const isAdmin = loggedInEmployee.role === 'admin';
+
+                if (isOriginalMentor || isCurrentMentor || isMyRequest || isSuper) return true;
+
+                if (isAdmin) {
+                    const managedIds = loggedInEmployee.managedHospitalIds || [];
+                    const hId = mentee?.hospitalId || mentee?.hospital_id;
+                    return hId && managedIds.includes(hId);
+                }
+
+                return false;
             })
             .map((r) => {
                 const mentee = allUsersData[r.menteeId]?.employee;
@@ -444,7 +483,11 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
                     monthKey: r.date.substring(0, 7),
                     status: r.status,
                     notes: r.reason || r.mentorNotes || '-',
-                    canReview: r.status === 'pending' && (allUsersData[r.menteeId]?.employee?.mentorId === myId || loggedInEmployee.role === 'admin' || loggedInEmployee.role === 'super-admin'),
+                    canReview: r.status === 'pending' && (
+                        allUsersData[r.menteeId]?.employee?.mentorId === myId ||
+                        (loggedInEmployee.role === 'super-admin' || loggedInEmployee.canBeBPH || (loggedInEmployee.functional_roles || loggedInEmployee.functionalRoles)?.includes('BPH')) ||
+                        (loggedInEmployee.role === 'admin' && (loggedInEmployee.managedHospitalIds || []).includes(allUsersData[r.menteeId]?.employee?.hospitalId || allUsersData[r.menteeId]?.employee?.hospital_id || ''))
+                    ),
                     originalData: r
                 };
             });
@@ -581,12 +624,15 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
                         const mentee = allUsersData[s.menteeId]?.employee;
                         const myId = loggedInEmployee.id;
                         const isPending = s.status.startsWith('pending_');
-                        const isAdmin = loggedInEmployee.role === 'admin' || loggedInEmployee.role === 'super-admin';
+                        const isSuper = loggedInEmployee.role === 'super-admin' || loggedInEmployee.canBeBPH || (loggedInEmployee.functional_roles || loggedInEmployee.functionalRoles)?.includes('BPH');
+                        const isAdmin = loggedInEmployee.role === 'admin';
+                        const managesMentee = (loggedInEmployee.managedHospitalIds || []).includes(mentee?.hospitalId || mentee?.hospital_id || '');
+                        const canOverrule = isSuper || (isAdmin && managesMentee);
 
                         // Strict check: Only show buttons if it is the current stage for the user (or admin override for the CURRENT stage)
                         const canReview = isPending && (
-                            (s.status === 'pending_mentor' && (s.mentorId === myId || mentee?.mentorId === myId || isAdmin)) ||
-                            (s.status === 'pending_kaunit' && (s.kaUnitId === myId || mentee?.kaUnitId === myId || isAdmin))
+                            (s.status === 'pending_mentor' && (s.mentorId === myId || mentee?.mentorId === myId || canOverrule)) ||
+                            (s.status === 'pending_kaunit' && (s.kaUnitId === myId || mentee?.kaUnitId === myId || canOverrule))
                         );
 
                         if (canReview) {

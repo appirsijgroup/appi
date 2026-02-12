@@ -195,6 +195,14 @@ export default function AlquranPage() {
     };
 
 
+    if (!loggedInEmployee && !bookmarksLoading) {
+        return (
+            <div className="flex items-center justify-center p-20">
+                <p className="text-white text-lg">Mohon tunggu, memuat profil...</p>
+            </div>
+        );
+    }
+
     return (
 
         <Alquran

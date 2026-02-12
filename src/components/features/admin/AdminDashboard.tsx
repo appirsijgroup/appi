@@ -2581,6 +2581,12 @@ const JabatanManagement: React.FC<JabatanManagementProps> = ({ allUsers, onUpdat
 
                 const updates: Partial<Employee> = { functionalRoles: newRoles };
 
+                // 🔥 Sync boolean flags with functional roles
+                if (role === 'BPH') updates.canBeBPH = isAddingRole;
+                if (role === 'DIREKSI') updates.canBeDirut = isAddingRole;
+                if (role === 'MANAJER') updates.canBeManager = isAddingRole;
+                if (role === 'KEPALA URUSAN' || role === 'KEPALA RUANGAN') updates.canBeKaUnit = isAddingRole;
+
 
                 onUpdateProfile(user.id, updates);
                 setConfirmation(null);

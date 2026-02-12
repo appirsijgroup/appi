@@ -74,7 +74,7 @@ export const useEmployeeStore = create<EmployeeState>((set, get) => ({
         if (get().isLoadingEmployees && limit) return;
 
         const isFullLoad = !limit;
-        if (isFullLoad && now - get().lastAllEmployeesLoad < CACHE_DURATION && Object.keys(get().allUsersData).length > 50) {
+        if (isFullLoad && now - get().lastAllEmployeesLoad < CACHE_DURATION && get().lastAllEmployeesLoad > 0) {
             return;
         }
 

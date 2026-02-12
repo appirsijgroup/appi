@@ -85,10 +85,10 @@ export async function POST(request: NextRequest) {
             // Insert
             const { rows } = await query(
                 `INSERT INTO bookmarks 
-                 (user_id, surah_number, surah_name, ayah_number, ayah_text, notes, timestamp, created_at, updated_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+                 (user_id, surah_number, surah_name, ayah_number, ayah_text, notes, created_at, updated_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
                  RETURNING *`,
-                [userId, sNum, surahName, aNum, ayahText, notes, Date.now()]
+                [userId, sNum, surahName, aNum, ayahText, notes]
             );
             return NextResponse.json({ success: true, action: 'added', data: rows[0] });
         }

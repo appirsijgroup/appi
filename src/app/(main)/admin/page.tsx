@@ -604,11 +604,20 @@ export default function AdminPage() {
             setAllUsersData((prev) => {
                 if (!prev[userId]) return prev;
                 const newData = { ...prev };
+
+                // 🔥 Sync camelCase to snake_case for consistency
+                const syncedUpdates = { ...updates };
+                if ('mentorId' in updates) (syncedUpdates as any).mentor_id = updates.mentorId;
+                if ('kaUnitId' in updates) (syncedUpdates as any).ka_unit_id = updates.kaUnitId;
+                if ('supervisorId' in updates) (syncedUpdates as any).supervisor_id = updates.supervisorId;
+                if ('managerId' in updates) (syncedUpdates as any).manager_id = updates.managerId;
+                if ('dirutId' in updates) (syncedUpdates as any).dirut_id = updates.dirutId;
+
                 newData[userId] = {
                     ...prev[userId],
                     employee: {
                         ...prev[userId].employee,
-                        ...updates
+                        ...syncedUpdates
                     }
                 };
                 return newData;
