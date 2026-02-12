@@ -116,15 +116,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ isLoggingOut: true });
 
         try {
-            // Clear local storage and cookies immediately
+            // 1. Clear local storage immediately
             if (typeof window !== 'undefined') {
                 localStorage.removeItem('loggedInUserId');
                 localStorage.removeItem('lastVisitedPage');
-                document.cookie = 'session=; path=/; max-age=0; SameSite=Lax';
+
+                // 🔥 Attempt to clear non-httpOnly cookies (userId, loggedInUserId)
+                // Note: 'session' cookie is httpOnly and can only be cleared by API
                 document.cookie = 'loggedInUserId=; path=/; max-age=0; SameSite=Lax';
+                document.cookie = 'userId=; path=/; max-age=0; SameSite=Lax';
             }
 
-            // Clear auth state immediately
+            // 2. Clear stores immediately
             set({
                 loggedInEmployee: null,
                 isHydrated: true,
@@ -135,16 +138,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             const employeeStore = useEmployeeStore.getState();
             employeeStore.setAllUsersData(() => ({}));
 
-            // Redirect to logout API to clear cookies server-side and then redirect to login
-            // Use fetch to avoid full page reload loop
+            // 3. Call server-side logout to clear HttpOnly session cookie
             if (typeof window !== 'undefined') {
-                await fetch('/api/auth/logout', { method: 'POST' });
+                try {
+                    await fetch('/api/auth/logout', {
+                        method: 'POST',
+                        cache: 'no-store',
+                        headers: { 'Pragma': 'no-cache' }
+                    });
+                } catch (fetchError) {
+                    console.error('Logout API call failed:', fetchError);
+                }
+
+                // 4. Force full page reload to Login for fresh state and middleware check
                 window.location.href = '/login';
             }
 
         } catch (e) {
             console.error('Logout process error:', e);
-            // Still redirect even if there's an error
             if (typeof window !== 'undefined') {
                 window.location.href = '/login';
             }

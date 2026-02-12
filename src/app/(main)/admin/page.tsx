@@ -5,7 +5,7 @@
 // Data is already fetched client-side via useEffect, so server-side rendering is not needed
 // This provides SPA-like experience with no full page refreshes
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import dynamicImport from 'next/dynamic';
 import { useAuthStore, useEmployeeStore, useUIStore, useActivityStore, useSunnahIbadahStore, useDailyActivitiesStore, useAnnouncementStore, useMutabaahStore, useNotificationStore } from '@/store/store';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
@@ -32,13 +32,14 @@ export default function AdminPage() {
         setAllUsersData,
         loadAllEmployees,
         loadHeavyAdminData,
+        lastHeavyAdminLoad,
         isLoadingEmployees,
         loadPaginatedEmployees,
         paginatedEmployees,
         paginationInfo
     } = useEmployeeStore();
     const { addToast } = useUIStore();
-    const { activities } = useActivityStore();
+    const { activities, loadActivities } = useActivityStore();
     const { sunnahIbadahList, addSunnahIbadah, updateSunnahIbadah, deleteSunnahIbadah } = useSunnahIbadahStore();
     const { dailyActivitiesConfig, updateDailyActivitiesConfig } = useDailyActivitiesStore();
 
@@ -165,21 +166,28 @@ export default function AdminPage() {
         loadData();
     }, [setAllUsersData]); // 🔥 Removed pagination deps - employee data loaded on-demand in AdminDashboard
 
-    // ✅ NEW: Load paginated employees when page or filters change
-    useEffect(() => {
-        if (loggedInEmployee && isHydrated) {
-            // Signal appending if page > 1 -> Changed to false for strict pagination (replace data)
-            loadPaginatedEmployees(page, 15, searchTerm, roleFilter, isActiveFilter, hospitalFilter, false)
-                .catch(err => console.error('Failed to load paginated employees:', err));
+    // Track initial load to prevent redundant full background syncs
+    const hasInitialLoadedRef = useRef(false);
 
-            // Trigger background full load if needed
-            // 🔥 FIX: Remove the length check (< 5) because pagination loads 15, which blocked this full load!
-            // We need full data for Reports (Activation Report, etc.) to be accurate.
-            if (!isLoadingEmployees) {
-                loadAllEmployees().catch(err => console.error('Background sync failed:', err));
-            }
+    // ✅ Load paginated employees when filters change
+    useEffect(() => {
+        if (!loggedInEmployee || !isHydrated) return;
+
+        // 1. Strict Paginated Load (Triggered by every filter/page change)
+        loadPaginatedEmployees(page, 15, searchTerm, roleFilter, isActiveFilter, hospitalFilter, false)
+            .catch(err => console.error('Failed to load paginated employees:', err));
+
+        // 2. Initial Extra Background Data (Triggered only once on mount/auth)
+        if (!hasInitialLoadedRef.current) {
+            hasInitialLoadedRef.current = true;
+
+            // Background full load for accurate reporting
+            loadAllEmployees().catch(err => console.error('Background sync failed:', err));
+
+            // Load activity metadata for names in reports
+            loadActivities().catch(err => console.error('Failed to load activities:', err));
         }
-    }, [page, searchTerm, roleFilter, isActiveFilter, hospitalFilter, loggedInEmployee, isHydrated, isLoadingEmployees, loadAllEmployees, loadPaginatedEmployees]);
+    }, [page, searchTerm, roleFilter, isActiveFilter, hospitalFilter, loggedInEmployee, isHydrated]); // 🔥 Removed unstable deps like loadAllEmployees/isLoadingEmployees
 
     // 🔥 Sync local pagination state with store pagination info
     useEffect(() => {
@@ -886,6 +894,7 @@ export default function AdminPage() {
                 onUpdateMutabaahLockingMode={handleUpdateMutabaahLockingMode}
                 onLoadEmployees={() => loadAllEmployees()}
                 onLoadHeavyData={loadHeavyAdminData}
+                lastHeavyAdminLoad={lastHeavyAdminLoad}
                 isLoadingEmployees={isLoadingEmployees}
                 paginatedEmployees={paginatedEmployees}
                 paginationInfo={paginationInfo}

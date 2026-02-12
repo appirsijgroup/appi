@@ -49,7 +49,11 @@ export async function GET(request: NextRequest) {
             message: row.message,
             isRead: row.is_read,
             createdAt: row.created_at,
-            data: row.data
+            timestamp: row.timestamp ? Number(row.timestamp) : Date.parse(row.created_at),
+            linkTo: row.link_to,
+            relatedEntityId: row.related_entity_id,
+            expiresAt: row.expires_at ? Number(row.expires_at) : undefined,
+            dismissOnClick: row.dismiss_on_click
         }));
 
         return NextResponse.json({ data: notifications });
@@ -144,6 +148,42 @@ export async function POST(request: NextRequest) {
 
             await query(`UPDATE notifications SET is_read = true WHERE user_id = $1`, [userId]);
             return NextResponse.json({ success: true });
+        }
+
+        if (action === 'create') {
+            const { userId: targetUserId, type, title, message, linkTo, relatedEntityId, expiresAt, dismissOnClick } = body;
+
+            if (!targetUserId || !type || !title || !message) {
+                return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+            }
+
+            // Optional: Only allow admins to send notifications to others?
+            // Actually, some user actions might trigger notifications. 
+            // Better to just check if session exists (which we already did).
+
+            const res = await query(
+                `INSERT INTO notifications (
+                    user_id, type, title, message, link_to, 
+                    related_entity_id, timestamp, is_read, 
+                    expires_at, dismiss_on_click
+                )
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                 RETURNING *`,
+                [
+                    targetUserId,
+                    type,
+                    title,
+                    message,
+                    linkTo ? JSON.stringify(linkTo) : null,
+                    relatedEntityId || null,
+                    Date.now(),
+                    false,
+                    expiresAt || null,
+                    dismissOnClick || false
+                ]
+            );
+
+            return NextResponse.json({ success: true, data: res.rows[0] });
         }
 
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

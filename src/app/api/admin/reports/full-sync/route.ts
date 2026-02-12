@@ -78,31 +78,56 @@ export async function GET(request: NextRequest) {
 
         // 1. Fetch Attendance Records
         const sholatParams: (string | string[] | number)[] = [finalStart];
-        let sholatSql = 'SELECT * FROM attendance_records WHERE timestamp >= $1';
-        if (finalEnd) {
-            sholatSql += ' AND timestamp <= $2';
-            sholatParams.push(finalEnd);
-        }
-        if (!isSuperAdmin) {
-            sholatSql += ' AND hospital_id = ANY($' + (sholatParams.length + 1) + ')';
+        let sholatSql: string;
+
+        if (isSuperAdmin) {
+            sholatSql = 'SELECT * FROM attendance_records WHERE "timestamp" >= $1';
+        } else {
+            sholatSql = 'SELECT * FROM attendance_records WHERE "timestamp" >= $1 AND hospital_id = ANY($2)';
             sholatParams.push(managedHospitalIds);
+        }
+
+        if (finalEnd) {
+            sholatSql += ` AND "timestamp" <= $${sholatParams.length + 1}`;
+            sholatParams.push(finalEnd);
         }
         const sholatRes = await query(sholatSql + ' LIMIT 50000', sholatParams);
 
         // 2. Fetch Team Records (Using DATE comparison)
         const teamParams: (string | string[] | number)[] = [finalStart.split('T')[0]];
-        let teamSql = 'SELECT * FROM team_attendance_records WHERE session_date >= $1';
-        if (finalEnd) {
-            teamSql += ' AND session_date <= $2';
-            teamParams.push(finalEnd.split('T')[0]);
-        }
-        if (!isSuperAdmin) {
-            teamSql += ' AND hospital_id = ANY($' + (teamParams.length + 1) + ')';
+        let teamSql: string;
+
+        if (isSuperAdmin) {
+            teamSql = 'SELECT * FROM team_attendance_records WHERE session_date >= $1';
+        } else {
+            teamSql = 'SELECT * FROM team_attendance_records WHERE session_date >= $1 AND hospital_id = ANY($2)';
             teamParams.push(managedHospitalIds);
+        }
+
+        if (finalEnd) {
+            teamSql += ` AND session_date <= $${teamParams.length + 1}`;
+            teamParams.push(finalEnd.split('T')[0]);
         }
         const teamRes = await query<TeamAttendanceRecord>(teamSql + ' LIMIT 10000', teamParams);
 
-        // 3. Fetch Employees with a safe subquery
+        // 3. Fetch Activity Records
+        const activityParams: (string | string[] | number)[] = [finalStart];
+        let activitySql: string;
+
+        if (isSuperAdmin) {
+            activitySql = 'SELECT * FROM activity_attendance WHERE submitted_at >= $1';
+        } else {
+            activitySql = 'SELECT * FROM activity_attendance WHERE submitted_at >= $1 AND hospital_id = ANY($2)';
+            activityParams.push(managedHospitalIds);
+        }
+
+        if (finalEnd) {
+            activitySql += ` AND submitted_at <= $${activityParams.length + 1}`;
+            activityParams.push(finalEnd);
+        }
+        const activityRes = await query(activitySql + ' LIMIT 10000', activityParams);
+
+        // 4. Fetch Employees with a safe subquery
         let employeeSql = `
             SELECT id, name, email, role, hospital_id, unit, bagian, profession, is_active, 
                    (SELECT COALESCE(json_agg(month_key), '[]') FROM mutabaah_activations WHERE employee_id = employees.id) as activated_months
@@ -120,7 +145,7 @@ export async function GET(request: NextRequest) {
             data: {
                 attendanceRecords: sholatRes.rows,
                 teamAttendanceRecords: teamRes.rows,
-                activityAttendanceRecords: [], // Optional
+                activityAttendanceRecords: activityRes.rows,
                 employees: employeeRes.rows
             }
         });

@@ -16,6 +16,7 @@ export interface ExtendedSessionPayload extends SessionPayload {
     name: string;
     nip: string;
     role: string;
+    hospitalId?: string; // 🔥 NEW: Track user's hospital
     canBeMentor?: boolean;
     canBeSupervisor?: boolean;
     canBeKaUnit?: boolean;

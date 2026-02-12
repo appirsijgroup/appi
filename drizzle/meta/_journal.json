@@ -15,6 +15,13 @@
       "when": 1770522663233,
       "tag": "0001_windy_ultron",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1770818445788,
+      "tag": "0002_milky_bloodstorm",
+      "breakpoints": true
     }
   ]
 }

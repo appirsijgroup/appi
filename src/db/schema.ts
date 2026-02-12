@@ -68,10 +68,12 @@ export const activityAttendance = pgTable("activity_attendance", {
     submittedAt: timestamp("submitted_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
     isLateEntry: boolean("is_late_entry").default(false),
     notes: text(),
+    hospitalId: text("hospital_id"), // 🔥 NEW: Denormalized for faster admin filtering
     ipAddress: text("ip_address"),
     createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
+    index("idx_activity_attendance_hospital").using("btree", table.hospitalId.asc().nullsLast().op("text_ops")),
     index("idx_activity_attendance_activity_id").using("btree", table.activityId.asc().nullsLast().op("text_ops")),
     index("idx_activity_attendance_employee_id").using("btree", table.employeeId.asc().nullsLast().op("text_ops")),
     foreignKey({
@@ -97,9 +99,11 @@ export const attendanceRecords = pgTable("attendance_records", {
     timestamp: timestamp({ withTimezone: true, mode: 'string' }).notNull(),
     isLateEntry: boolean("is_late_entry").default(false),
     location: text(),
+    hospitalId: text("hospital_id"), // 🔥 NEW: Denormalized for faster admin filtering
     createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
+    index("idx_attendance_hospital").using("btree", table.hospitalId.asc().nullsLast().op("text_ops")),
     index("attendance_records_employee_id_idx").using("btree", table.employeeId.asc().nullsLast().op("text_ops")),
     index("attendance_records_entity_id_idx").using("btree", table.entityId.asc().nullsLast().op("text_ops")),
     index("attendance_records_timestamp_idx").using("btree", table.timestamp.desc().nullsFirst().op("timestamptz_ops")),
@@ -784,7 +788,9 @@ export const teamAttendanceRecords = pgTable("team_attendance_records", {
     sessionDate: text("session_date").notNull(),
     sessionStartTime: text("session_start_time").notNull(),
     sessionEndTime: text("session_end_time").notNull(),
+    hospitalId: text("hospital_id"), // 🔥 NEW: Denormalized for faster admin filtering
 }, (table) => [
+    index("idx_team_attendance_hospital").using("btree", table.hospitalId.asc().nullsLast().op("text_ops")),
     index("idx_team_attendance_records_attended_at").using("btree", table.attendedAt.asc().nullsLast().op("timestamptz_ops")),
     index("idx_team_attendance_records_date").using("btree", table.sessionDate.asc().nullsLast().op("text_ops")),
     index("idx_team_attendance_records_session_id").using("btree", table.sessionId.asc().nullsLast().op("uuid_ops")),

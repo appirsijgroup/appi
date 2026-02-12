@@ -50,16 +50,18 @@ export async function POST(request: NextRequest) {
         if (!activity_id || !employee_id || !status) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
+        const hospitalId = (session as any).hospitalId || null;
 
         const sql = `
-            INSERT INTO activity_attendance (activity_id, employee_id, status, reason, is_late_entry, submitted_at)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO activity_attendance (activity_id, employee_id, status, reason, is_late_entry, submitted_at, hospital_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT (activity_id, employee_id)
             DO UPDATE SET
                 status = EXCLUDED.status,
                 reason = EXCLUDED.reason,
                 is_late_entry = EXCLUDED.is_late_entry,
                 submitted_at = EXCLUDED.submitted_at,
+                hospital_id = COALESCE(activity_attendance.hospital_id, EXCLUDED.hospital_id),
                 updated_at = NOW()
             RETURNING *
         `;
@@ -70,7 +72,8 @@ export async function POST(request: NextRequest) {
             status,
             reason || null,
             is_late_entry || false,
-            submitted_at || new Date().toISOString()
+            submitted_at || new Date().toISOString(),
+            hospitalId
         ]);
 
         return NextResponse.json({ success: true, data: rows[0] });

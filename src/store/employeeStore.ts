@@ -230,10 +230,11 @@ export const useEmployeeStore = create<EmployeeState>((set, get) => ({
 
             activityRecords.forEach(r => {
                 if (!r.employee_id) return;
-                const activityDate = r.timestamp ? new Date(r.timestamp).toISOString().split('T')[0] : null;
+                const recordTimestamp = r.submitted_at || r.timestamp;
+                const activityDate = recordTimestamp ? new Date(recordTimestamp).toISOString().split('T')[0] : null;
                 mergeToUpdate(r.employee_id, r.activity_id, {
                     status: r.status,
-                    timestamp: new Date(r.submitted_at || r.timestamp).getTime(),
+                    timestamp: recordTimestamp ? new Date(recordTimestamp).getTime() : Date.now(),
                     submitted: true
                 }, activityDate || undefined);
             });

@@ -690,4 +690,5 @@ export interface Notification {
   } | string;
   expiresAt?: number;
   dismissOnClick?: boolean;
+  createdAt?: string;
 }

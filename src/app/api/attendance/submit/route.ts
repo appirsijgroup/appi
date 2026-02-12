@@ -25,16 +25,19 @@ export async function POST(request: NextRequest) {
         }
 
         // 4. Perform Upsert using PostgreSQL ON CONFLICT
+        const hospitalId = session.hospitalId || null;
+
         const sql = `
-            INSERT INTO attendance_records (employee_id, entity_id, status, reason, timestamp, is_late_entry, location)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO attendance_records (employee_id, entity_id, status, reason, timestamp, is_late_entry, location, hospital_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             ON CONFLICT (employee_id, entity_id) 
             DO UPDATE SET 
                 status = EXCLUDED.status,
                 reason = EXCLUDED.reason,
                 timestamp = EXCLUDED.timestamp,
                 is_late_entry = EXCLUDED.is_late_entry,
-                location = EXCLUDED.location
+                location = EXCLUDED.location,
+                hospital_id = COALESCE(attendance_records.hospital_id, EXCLUDED.hospital_id)
             RETURNING *
         `;
 
@@ -45,7 +48,8 @@ export async function POST(request: NextRequest) {
             reason,
             timestamp,
             is_late_entry || false,
-            location || null
+            location || null,
+            hospitalId
         ]);
 
         const data = rows[0];

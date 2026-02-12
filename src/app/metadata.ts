@@ -5,8 +5,8 @@
 
 import type { Metadata } from 'next';
 
-// Get the base URL from environment variable or use the Vercel deployment URL
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://appirsijgroup.vercel.app';
+// Get the base URL from environment variable or use the default URL
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 /**
  * Base metadata for the entire application

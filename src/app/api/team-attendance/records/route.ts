@@ -56,6 +56,12 @@ export async function POST(request: NextRequest) {
         }
 
         const recordData = await request.json();
+        const hospitalId = (session as any).hospitalId || null;
+
+        // Ensure hospital_id is included in the record data
+        if (hospitalId && !recordData.hospital_id) {
+            recordData.hospital_id = hospitalId;
+        }
 
         // 1. Check if already exists to avoid unique constraint error
         const { rows: existing } = await query(

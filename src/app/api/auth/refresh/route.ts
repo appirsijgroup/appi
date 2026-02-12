@@ -32,14 +32,8 @@ export async function POST(request: NextRequest) {
       message: 'Session refreshed successfully'
     })
 
-    // Set the cookie on the response
-    response.cookies.set('session', newToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 8 * 60 * 60, // 8 hours
-      path: '/',
-    })
+    const { setSessionCookie } = await import('@/lib/jwt')
+    setSessionCookie(response, newToken)
 
     return response
   } catch (error) {

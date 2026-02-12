@@ -116,7 +116,7 @@ const CreateActivityPage = () => {
         <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
           Buat <span className="text-teal-400">Kegiatan Baru</span>
         </h1>
-        <p className="text-gray-400 text-sm mt-1">Lengkapi formulir di bawah untuk menjadwalkan kegiatan atau sesi presensi karyawan secara terpusat.</p>
+
       </div>
 
       {error && (

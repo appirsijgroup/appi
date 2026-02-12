@@ -80,6 +80,7 @@ interface AdminDashboardProps {
     onUpdateMutabaahLockingMode: (mode: MutabaahLockingMode) => void;
     onLoadEmployees?: () => Promise<void>;
     onLoadHeavyData?: () => Promise<void>; // 🔥 NEW: On-demand heavy data loading
+    lastHeavyAdminLoad?: number;
     isLoadingEmployees?: boolean;
     paginatedEmployees?: Employee[];
     paginationInfo?: {
@@ -3536,7 +3537,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
         onAdminUpdateAttendance, sunnahIbadahList, onAddSunnahIbadah, onUpdateSunnahIbadah, onDeleteSunnahIbadah,
         dailyActivitiesConfig, onUpdateDailyActivitiesConfig,
         onUpdateProfile, hospitals, onAddHospital, onUpdateHospital, onDeleteHospital, onToggleHospitalStatus,
-        mutabaahLockingMode, onUpdateMutabaahLockingMode, onLoadEmployees, onLoadHeavyData, isLoadingEmployees,
+        mutabaahLockingMode, onUpdateMutabaahLockingMode, onLoadEmployees, onLoadHeavyData, lastHeavyAdminLoad, isLoadingEmployees,
         pagination, paginatedEmployees
     } = props;
 
@@ -3571,26 +3572,35 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
         }
     }, [activeView, allUsersData, onLoadEmployees]);
 
-    const hasAutoSyncedRef = useRef(false);
-
-    // 🔥 NEW: Auto-sync attendance history when entering Reports tab if not already loaded
+    // 🔥 Real-time Monitoring: Check if data needs refresh when entering Reports tab
     useEffect(() => {
-        if (activeView === 'reports' && onLoadHeavyData && !hasAutoSyncedRef.current) {
-            // Check if we have any attendance history for the whole team.
-            // If only the logged-in user has history, it might just be the admin's personal record.
-            const historyCount = Object.values(allUsersData).filter(d =>
-                (d.history && Object.keys(d.history).length > 0) ||
-                (d.attendance && Object.keys(d.attendance).length > 0)
-            ).length;
+        if (activeView === 'reports' && onLoadHeavyData && !isLoadingEmployees) {
+            const now = Date.now();
+            const lastLoad = lastHeavyAdminLoad || 0;
+            const STALE_THRESHOLD = 60 * 1000; // 60 seconds
 
-            const hasEnoughHistory = historyCount > 1 || (Object.keys(allUsersData).length <= 1 && historyCount > 0);
-
-            if (!hasEnoughHistory && !isLoadingEmployees) {
-                hasAutoSyncedRef.current = true; // Mark as attempted
+            if (now - lastLoad > STALE_THRESHOLD) {
                 onLoadHeavyData();
             }
         }
-    }, [activeView, onLoadHeavyData, allUsersData, isLoadingEmployees]);
+    }, [activeView, onLoadHeavyData, isLoadingEmployees, lastHeavyAdminLoad]);
+
+    // 🔥 REAL-TIME AUTO-REFRESH: Background polling every 2 minutes while on Reports tab
+    useEffect(() => {
+        let interval: NodeJS.Timeout | null = null;
+
+        if (activeView === 'reports' && onLoadHeavyData) {
+            interval = setInterval(() => {
+                if (!isLoadingEmployees) {
+                    onLoadHeavyData();
+                }
+            }, 120000); // 2 minutes
+        }
+
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [activeView, onLoadHeavyData, isLoadingEmployees]);
 
     useEffect(() => {
         // Redirection if activeView is restricted for the current user role

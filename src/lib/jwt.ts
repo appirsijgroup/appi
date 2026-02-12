@@ -41,6 +41,7 @@ export interface SessionPayload {
   name: string;
   nip: string;
   role: string;
+  hospitalId?: string; // 🔥 NEW: Track user's hospital
   managedHospitalIds?: string[];
   exp?: number;
 }
@@ -74,16 +75,25 @@ export async function verifyToken(token: string): Promise<SessionPayload | null>
 }
 
 /**
+ * Common cookie options to ensure consistency across login, refresh, and logout
+ */
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  // 🔥 FIX: Set to false to allow login via IP address over HTTP in local network.
+  // Using consistent value ensures cookies are correctly overwritten/deleted.
+  secure: false,
+  sameSite: 'lax' as const,
+  path: '/',
+};
+
+/**
  * Set session cookie on response
  * Used in API routes after successful login
  */
 export function setSessionCookie(response: NextResponse, token: string) {
   response.cookies.set('session', token, {
-    httpOnly: true,
-    secure: false, // Set to false to allow login via IP address over HTTP in local network
-    sameSite: 'lax',
+    ...COOKIE_OPTIONS,
     maxAge: 8 * 60 * 60, // 8 hours
-    path: '/',
   });
 }
 
@@ -93,10 +103,9 @@ export function setSessionCookie(response: NextResponse, token: string) {
  */
 export function clearSessionCookie(response: NextResponse) {
   response.cookies.set('session', '', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    ...COOKIE_OPTIONS,
     maxAge: 0,
-    path: '/',
   });
+  response.cookies.delete('userId');
+  response.cookies.delete('loggedInUserId');
 }

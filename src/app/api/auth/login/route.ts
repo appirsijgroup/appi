@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
       name: employee.name,
       nip: employee.id,
       role: employee.role,
+      hospitalId: employee.hospital_id, // 🔥 NEW: Track user's hospital
       managedHospitalIds: employee.managed_hospital_ids,
       canBeMentor: employee.can_be_mentor,
       canBeSupervisor: employee.can_be_supervisor,

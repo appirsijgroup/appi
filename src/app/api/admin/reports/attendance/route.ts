@@ -22,12 +22,14 @@ export async function GET(request: NextRequest) {
 
         // Session verified
 
-        // Check if user has admin role
-        const isAdmin = session.role === 'admin' || session.role === 'super-admin' || session.role === 'owner';
+        const isAdmin = session.role === 'admin';
+        const isSuperAdmin = session.role === 'super-admin' || session.role === 'owner';
 
-        if (!isAdmin) {
+        if (!isAdmin && !isSuperAdmin) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
+
+        const managedHospitalIds = (session as any).managedHospitalIds || [];
 
         const { searchParams } = new URL(request.url);
         const startDate = searchParams.get('startDate');
@@ -54,7 +56,7 @@ export async function GET(request: NextRequest) {
         const attConditions = [];
         const attParams = [];
         if (startDate) {
-            attConditions.push(`timestamp >= $${attParams.length + 1}`);
+            attConditions.push(`"timestamp" >= $${attParams.length + 1}`);
             attParams.push(startDate);
         }
         if (endDate) {
@@ -62,8 +64,12 @@ export async function GET(request: NextRequest) {
             attParams.push(endDate + 'T23:59:59');
         }
         if (!startDate && !endDate) {
-            attConditions.push(`timestamp >= $${attParams.length + 1}`);
+            attConditions.push(`"timestamp" >= $${attParams.length + 1}`);
             attParams.push(defaultStart);
+        }
+        if (!isSuperAdmin) {
+            attConditions.push(`hospital_id = ANY($${attParams.length + 1})`);
+            attParams.push(managedHospitalIds);
         }
 
         const finalAttSql = attendanceSql + (attConditions.length ? ' WHERE ' + attConditions.join(' AND ') : '') + ' ORDER BY timestamp ASC' + (!startDate && !endDate ? ' LIMIT 5000' : ' LIMIT 10000');
@@ -78,17 +84,25 @@ export async function GET(request: NextRequest) {
             teamConditions.push(`session_date >= $${teamParams.length + 1}`);
             teamParams.push(defaultStartDateOnly);
         }
+        if (!isSuperAdmin) {
+            teamConditions.push(`hospital_id = ANY($${teamParams.length + 1})`);
+            teamParams.push(managedHospitalIds);
+        }
         const finalTeamSql = teamSql + (teamConditions.length ? ' WHERE ' + teamConditions.join(' AND ') : '') + ' LIMIT 5000';
 
         // 3. Activity Attendance
         const actConditions = [];
         const actParams = [];
         if (startDate) {
-            actConditions.push(`timestamp >= $${actParams.length + 1}`);
+            actConditions.push(`submitted_at >= $${actParams.length + 1}`);
             actParams.push(startDate);
         } else {
-            actConditions.push(`timestamp >= $${actParams.length + 1}`);
+            actConditions.push(`submitted_at >= $${actParams.length + 1}`);
             actParams.push(defaultStart);
+        }
+        if (!isSuperAdmin) {
+            actConditions.push(`hospital_id = ANY($${actParams.length + 1})`);
+            actParams.push(managedHospitalIds);
         }
         const finalActSql = activitySql + (actConditions.length ? ' WHERE ' + actConditions.join(' AND ') : '') + ' LIMIT 5000';
 

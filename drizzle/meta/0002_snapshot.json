@@ -1,6 +1,6 @@
 {
-  "id": "069b8fcf-a5c9-4f12-902d-863accb730eb",
-  "prevId": "b000aeab-1bee-4186-90e6-0b25b5c85833",
+  "id": "744e9775-8737-4cbe-ae66-929d9c76339d",
+  "prevId": "069b8fcf-a5c9-4f12-902d-863accb730eb",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -13,7 +13,7 @@
           "type": "text",
           "primaryKey": true,
           "notNull": true,
-          "default": "uuid_generate_v4()"
+          "default": "gen_random_uuid()"
         },
         "name": {
           "name": "name",
@@ -328,6 +328,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "hospital_id": {
+          "name": "hospital_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "ip_address": {
           "name": "ip_address",
           "type": "text",
@@ -350,6 +356,22 @@
         }
       },
       "indexes": {
+        "idx_activity_attendance_hospital": {
+          "name": "idx_activity_attendance_hospital",
+          "columns": [
+            {
+              "expression": "hospital_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "idx_activity_attendance_activity_id": {
           "name": "idx_activity_attendance_activity_id",
           "columns": [
@@ -440,7 +462,7 @@
           "type": "text",
           "primaryKey": true,
           "notNull": true,
-          "default": "uuid_generate_v4()"
+          "default": "gen_random_uuid()"
         },
         "title": {
           "name": "title",
@@ -673,7 +695,7 @@
           "type": "text",
           "primaryKey": true,
           "notNull": true,
-          "default": "uuid_generate_v4()"
+          "default": "gen_random_uuid()"
         },
         "employee_id": {
           "name": "employee_id",
@@ -811,6 +833,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "hospital_id": {
+          "name": "hospital_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -827,6 +855,22 @@
         }
       },
       "indexes": {
+        "idx_attendance_hospital": {
+          "name": "idx_attendance_hospital",
+          "columns": [
+            {
+              "expression": "hospital_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "attendance_records_employee_id_idx": {
           "name": "attendance_records_employee_id_idx",
           "columns": [
@@ -1072,7 +1116,7 @@
           "type": "text",
           "primaryKey": true,
           "notNull": true,
-          "default": "uuid_generate_v4()"
+          "default": "gen_random_uuid()"
         },
         "timestamp": {
           "name": "timestamp",
@@ -1384,7 +1428,7 @@
           "type": "text",
           "primaryKey": true,
           "notNull": true,
-          "default": "uuid_generate_v4()"
+          "default": "gen_random_uuid()"
         },
         "mentee_id": {
           "name": "mentee_id",
@@ -1694,21 +1738,34 @@
       },
       "isRLSEnabled": false
     },
-    "public.employee_monthly_reports": {
-      "name": "employee_monthly_reports",
+    "public.employee_monthly_records": {
+      "name": "employee_monthly_records",
       "schema": "",
       "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
         "employee_id": {
           "name": "employee_id",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
           "notNull": true
         },
-        "reports": {
-          "name": "reports",
+        "month_key": {
+          "name": "month_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "report_data": {
+          "name": "report_data",
           "type": "jsonb",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "default": "'{}'::jsonb"
         },
         "created_at": {
@@ -1727,43 +1784,47 @@
         }
       },
       "indexes": {
-        "idx_employee_monthly_reports_reports_gin": {
-          "name": "idx_employee_monthly_reports_reports_gin",
+        "idx_emr_employee_month": {
+          "name": "idx_emr_employee_month",
           "columns": [
             {
-              "expression": "reports",
+              "expression": "employee_id",
               "isExpression": false,
               "asc": true,
-              "nulls": "last",
-              "opclass": "jsonb_ops"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
-        },
-        "idx_employee_monthly_reports_updated_at": {
-          "name": "idx_employee_monthly_reports_updated_at",
-          "columns": [
+              "nulls": "last"
+            },
             {
-              "expression": "updated_at",
+              "expression": "month_key",
               "isExpression": false,
               "asc": false,
-              "nulls": "first",
-              "opclass": "timestamptz_ops"
+              "nulls": "last"
             }
           ],
           "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_emr_report_data": {
+          "name": "idx_emr_report_data",
+          "columns": [
+            {
+              "expression": "report_data",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
         }
       },
       "foreignKeys": {
-        "employee_monthly_reports_employee_id_fkey": {
-          "name": "employee_monthly_reports_employee_id_fkey",
-          "tableFrom": "employee_monthly_reports",
+        "employee_monthly_records_employee_id_fkey": {
+          "name": "employee_monthly_records_employee_id_fkey",
+          "tableFrom": "employee_monthly_records",
           "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
@@ -1776,59 +1837,28 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "employee_monthly_records_unique_month": {
+          "name": "employee_monthly_records_unique_month",
+          "nullsNotDistinct": false,
+          "columns": [
+            "employee_id",
+            "month_key"
+          ]
+        }
+      },
       "policies": {
-        "Admins manage all": {
-          "name": "Admins manage all",
+        "Admins manage all records": {
+          "name": "Admins manage all records",
           "as": "PERMISSIVE",
           "for": "ALL",
           "to": [
             "public"
           ],
-          "using": "(EXISTS ( SELECT 1\n   FROM employees\n  WHERE ((employees.id = (auth.uid())::text) AND (employees.role = ANY (ARRAY['admin'::text, 'super-admin'::text])))))"
+          "using": "(EXISTS ( SELECT 1\n    FROM employees\n    WHERE ((employees.id = (auth.uid())::text) AND (employees.role = ANY (ARRAY['admin'::text, 'super-admin'::text])))))"
         },
-        "Allow everyone to delete monthly reports": {
-          "name": "Allow everyone to delete monthly reports",
-          "as": "PERMISSIVE",
-          "for": "DELETE",
-          "to": [
-            "public"
-          ]
-        },
-        "Allow everyone to insert monthly reports": {
-          "name": "Allow everyone to insert monthly reports",
-          "as": "PERMISSIVE",
-          "for": "INSERT",
-          "to": [
-            "public"
-          ]
-        },
-        "Allow everyone to update monthly reports": {
-          "name": "Allow everyone to update monthly reports",
-          "as": "PERMISSIVE",
-          "for": "UPDATE",
-          "to": [
-            "public"
-          ]
-        },
-        "Allow everyone to view all monthly reports": {
-          "name": "Allow everyone to view all monthly reports",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "public"
-          ]
-        },
-        "Mentors view mentees reports": {
-          "name": "Mentors view mentees reports",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "public"
-          ]
-        },
-        "Users manage own reports": {
-          "name": "Users manage own reports",
+        "Allow everyone to view/edit their own records": {
+          "name": "Allow everyone to view/edit their own records",
           "as": "PERMISSIVE",
           "for": "ALL",
           "to": [
@@ -2640,6 +2670,13 @@
           "notNull": false,
           "default": false
         },
+        "can_be_bph": {
+          "name": "can_be_bph",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
         "functional_roles": {
           "name": "functional_roles",
           "type": "text[]",
@@ -2713,6 +2750,42 @@
           "primaryKey": false,
           "notNull": false,
           "default": "'{\"\"}'"
+        },
+        "nik": {
+          "name": "nik",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone_number": {
+          "name": "phone_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "employment_status": {
+          "name": "employment_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "birth_place": {
+          "name": "birth_place",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "birth_date": {
+          "name": "birth_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "last_announcement_read_timestamp": {
           "name": "last_announcement_read_timestamp",
@@ -2922,6 +2995,32 @@
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
+        },
+        "employees_supervisor_id_fkey": {
+          "name": "employees_supervisor_id_fkey",
+          "tableFrom": "employees",
+          "tableTo": "employees",
+          "columnsFrom": [
+            "supervisor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "employees_manager_id_fkey": {
+          "name": "employees_manager_id_fkey",
+          "tableFrom": "employees",
+          "tableTo": "employees",
+          "columnsFrom": [
+            "manager_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3075,7 +3174,7 @@
           "type": "text",
           "primaryKey": true,
           "notNull": true,
-          "default": "uuid_generate_v4()"
+          "default": "gen_random_uuid()"
         },
         "profession_category": {
           "name": "profession_category",
@@ -3199,7 +3298,7 @@
           "type": "text",
           "primaryKey": true,
           "notNull": true,
-          "default": "uuid_generate_v4()"
+          "default": "gen_random_uuid()"
         },
         "mentor_id": {
           "name": "mentor_id",
@@ -3333,7 +3432,7 @@
           "type": "text",
           "primaryKey": true,
           "notNull": true,
-          "default": "uuid_generate_v4()"
+          "default": "gen_random_uuid()"
         },
         "mentee_id": {
           "name": "mentee_id",
@@ -3410,7 +3509,53 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_missed_prayer_mentee_id": {
+          "name": "idx_missed_prayer_mentee_id",
+          "columns": [
+            {
+              "expression": "mentee_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_missed_prayer_status": {
+          "name": "idx_missed_prayer_status",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_missed_prayer_requested_at": {
+          "name": "idx_missed_prayer_requested_at",
+          "columns": [
+            {
+              "expression": "requested_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "missed_prayer_requests_mentee_id_fkey": {
           "name": "missed_prayer_requests_mentee_id_fkey",
@@ -3459,7 +3604,7 @@
           "type": "text",
           "primaryKey": true,
           "notNull": true,
-          "default": "uuid_generate_v4()"
+          "default": "gen_random_uuid()"
         },
         "mentee_id": {
           "name": "mentee_id",
@@ -3680,6 +3825,32 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "weekly_report_submissions_supervisor_id_fkey": {
+          "name": "weekly_report_submissions_supervisor_id_fkey",
+          "tableFrom": "monthly_report_submissions",
+          "tableTo": "employees",
+          "columnsFrom": [
+            "supervisor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "weekly_report_submissions_manager_id_fkey": {
+          "name": "weekly_report_submissions_manager_id_fkey",
+          "tableFrom": "monthly_report_submissions",
+          "tableTo": "employees",
+          "columnsFrom": [
+            "manager_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3808,7 +3979,7 @@
           "type": "text",
           "primaryKey": true,
           "notNull": true,
-          "default": "uuid_generate_v4()"
+          "default": "gen_random_uuid()"
         },
         "user_id": {
           "name": "user_id",
@@ -4049,7 +4220,7 @@
           "type": "text",
           "primaryKey": true,
           "notNull": true,
-          "default": "uuid_generate_v4()"
+          "default": "gen_random_uuid()"
         },
         "user_id": {
           "name": "user_id",
@@ -4492,7 +4663,7 @@
           "type": "text",
           "primaryKey": true,
           "notNull": true,
-          "default": "uuid_generate_v4()"
+          "default": "gen_random_uuid()"
         },
         "mentee_id": {
           "name": "mentee_id",
@@ -4557,7 +4728,53 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_tadarus_requests_mentee_id": {
+          "name": "idx_tadarus_requests_mentee_id",
+          "columns": [
+            {
+              "expression": "mentee_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_tadarus_requests_status": {
+          "name": "idx_tadarus_requests_status",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_tadarus_requests_requested_at": {
+          "name": "idx_tadarus_requests_requested_at",
+          "columns": [
+            {
+              "expression": "requested_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "tadarus_requests_mentee_id_fkey": {
           "name": "tadarus_requests_mentee_id_fkey",
@@ -4606,7 +4823,7 @@
           "type": "text",
           "primaryKey": true,
           "notNull": true,
-          "default": "uuid_generate_v4()"
+          "default": "gen_random_uuid()"
         },
         "title": {
           "name": "title",
@@ -4822,9 +5039,31 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "hospital_id": {
+          "name": "hospital_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
+        "idx_team_attendance_hospital": {
+          "name": "idx_team_attendance_hospital",
+          "columns": [
+            {
+              "expression": "hospital_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "idx_team_attendance_records_attended_at": {
           "name": "idx_team_attendance_records_attended_at",
           "columns": [

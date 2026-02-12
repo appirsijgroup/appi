@@ -4,6 +4,7 @@ import EmployeeSearchableInput from '@/components/features/admin/EmployeeSearcha
 import { SearchIcon } from '@/components/ui/Icons';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useUIStore } from '@/store/store';
+import { getEmployeeById } from '@/services/employeeService';
 
 interface RelationManagementProps {
     allUsers: Employee[];
@@ -134,6 +135,7 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
         setCurrentPage(1);
     }, [searchTerm]);
 
+
     const handleRelationChange = async (
         userToUpdate: Employee,
         field: 'mentorId' | 'kaUnitId' | 'supervisorId' | 'managerId', // dirutId is now automated
@@ -143,6 +145,34 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
         if (!userToUpdate || !userToUpdate.id) {
             return;
         }
+
+        // Helper for robust async name resolution
+        const resolveUserName = async (id: string | undefined | null): Promise<string | null> => {
+            if (!id) return null;
+            const trimmedId = String(id).trim();
+
+            // 1. Try local map (fastest)
+            if (userMap.has(trimmedId)) return userMap.get(trimmedId) || trimmedId;
+
+            // 2. Try safeAllUsers list
+            const safeUser = safeAllUsers.find(u => String(u.id).trim() === trimmedId);
+            if (safeUser) return safeUser.name;
+
+            // 3. Try allUsers (unfiltered)
+            const anyUser = allUsers.find(u => String(u.id).trim() === trimmedId);
+            if (anyUser) return anyUser.name;
+
+            // 4. Fallback: Fetch from API (slow but accurate)
+            try {
+                const fetchedUser = await getEmployeeById(trimmedId);
+                if (fetchedUser) return fetchedUser.name;
+            } catch (e) {
+                console.error('Failed to resolve user name via API', e);
+            }
+
+            // 5. Last resort: Return ID
+            return trimmedId;
+        };
 
         // Continue with new assignment or keeping existing
         if (newId !== undefined) {
@@ -157,8 +187,8 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
                 };
 
                 const oldRelationId = userToUpdate[field];
-                const oldRelationName = oldRelationId ? userMap.get(oldRelationId) : null;
-                const newRelationName = userMap.get(newId!) || 'N/A';
+                const oldRelationName = await resolveUserName(oldRelationId);
+                const newRelationName = (await resolveUserName(newId)) || 'N/A';
 
                 const result = await onUpdateProfile(userToUpdate.id, { [field]: newId });
                 if (result) {
@@ -185,7 +215,9 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
                                 roleName: fieldNameMap[field] as any,
                                 assignmentType: assignmentType,
                                 assigneeName: newRelationName, // 🔥 FIX: Kirim nama, bukan ID
+                                assigneeId: newId, // Backup ID
                                 previousAssigneeName: oldRelationName || undefined, // 🔥 FIX: Kirim nama, bukan ID
+                                previousAssigneeId: oldRelationId || undefined, // Backup ID
                             }
                         }
                     };
