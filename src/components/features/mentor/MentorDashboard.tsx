@@ -41,7 +41,7 @@ interface MentorDashboardProps {
     allUsersData: Record<string, { employee: Employee; attendance: Attendance; history: HistoryRecord; }>;
     onUpdateProfile: (userId: string, updates: Partial<Employee>) => Promise<boolean>;
     monthlyReportSubmissions: MonthlyReportSubmission[];
-    onReviewReport: (submissionId: string, decision: 'approved' | 'rejected', notes: string | undefined, reviewerRole: 'mentor' | 'supervisor' | 'kaunit' | 'manager') => void;
+    onReviewReport: (submissionId: string, decision: 'approved' | 'rejected', notes: string | undefined, reviewerRole: 'mentor' | 'kaunit') => void;
     tadarusSessions: TadarusSession[];
     tadarusRequests: TadarusRequest[];
     onCreateTadarusSession: (data: Omit<TadarusSession, 'id' | 'createdAt' | 'presentMenteeIds'>) => void;

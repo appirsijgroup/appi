@@ -64,7 +64,10 @@ export async function GET(request: NextRequest) {
                 // ✅ SECURITY: Strict whitelist for database columns to prevent SQL Injection
                 const WHU_ROLE_WHITELIST: Record<string, string> = {
                     'mentorId': 'mentor_id',
-                    'kaUnitId': 'ka_unit_id'
+                    'kaUnitId': 'ka_unit_id',
+                    'managerId': 'manager_id',
+                    'supervisorId': 'supervisor_id',
+                    'dirutId': 'dirut_id'
                 };
 
                 const roleClauses = roles
@@ -78,7 +81,7 @@ export async function GET(request: NextRequest) {
 
                 queryStr += ` AND (${roleClauses.join(' OR ')})`;
             } else {
-                queryStr += ` AND (mentor_id = $${superiorIdx} OR ka_unit_id = $${superiorIdx})`;
+                queryStr += ` AND (mentor_id = $${superiorIdx} OR ka_unit_id = $${superiorIdx} OR manager_id = $${superiorIdx} OR supervisor_id = $${superiorIdx} OR dirut_id = $${superiorIdx})`;
             }
         } else if (menteeIdsParam) {
             // Admins or specific management check would be needed here for bulk
@@ -121,6 +124,9 @@ export async function POST(request: NextRequest) {
 
         const mentorId = reportData?.mentorId || null;
         const kaUnitId = reportData?.kaUnitId || null;
+        const managerId = reportData?.managerId || null;
+        const supervisorId = reportData?.supervisorId || null;
+        const dirutId = reportData?.dirutId || null;
         const menteeNameFinal = reportData?.menteeName || session.name || 'Unknown User';
 
         if (!mentorId) {
@@ -130,15 +136,15 @@ export async function POST(request: NextRequest) {
         const sql = `
             INSERT INTO monthly_report_submissions (
                 mentee_id, mentee_name, month_key, week_index, submitted_at, 
-                mentor_id, ka_unit_id,
+                mentor_id, ka_unit_id, manager_id, supervisor_id, dirut_id,
                 status, reports
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             RETURNING *
         `;
 
         const params = [
             menteeId, menteeNameFinal, monthKey, 0, submittedAt || Date.now(),
-            mentorId, kaUnitId,
+            mentorId, kaUnitId, managerId, supervisorId, dirutId,
             'pending_mentor', reportData
         ];
 
@@ -176,7 +182,11 @@ export async function PATCH(request: NextRequest) {
 
         if (action === 'review') {
             // SECURITY: Only assigned reviewers or Admins
-            const isAssigned = report.mentor_id === session.userId || report.ka_unit_id === session.userId;
+            const isAssigned = report.mentor_id === session.userId ||
+                report.ka_unit_id === session.userId ||
+                report.manager_id === session.userId ||
+                report.supervisor_id === session.userId ||
+                report.dirut_id === session.userId;
             if (!isAssigned && !(await isAdmin())) {
                 return NextResponse.json({ error: 'Forbidden: You are not assigned to review this report' }, { status: 403 });
             }

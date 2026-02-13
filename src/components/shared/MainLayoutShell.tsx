@@ -355,11 +355,13 @@ export default function MainLayoutShell({ children }: { children: React.ReactNod
     const filteredNavItems = useMemo(() => {
         if (!loggedInEmployee) return [];
 
-        // Check if user has any management/assignment role (Mentor, SPV, KaUnit, Dirut, or Admin)
+        // Check if user has any management/assignment role (Mentor, SPV, KaUnit, Manager, Dirut, or Admin)
         const hasManagementRole =
             isAdmin ||
             loggedInEmployee.canBeMentor ||
+            loggedInEmployee.canBeSupervisor ||
             loggedInEmployee.canBeKaUnit ||
+            loggedInEmployee.canBeManager ||
             loggedInEmployee.canBeDirut;
 
         return allNavItemsRaw.filter(item => {
@@ -391,7 +393,10 @@ export default function MainLayoutShell({ children }: { children: React.ReactNod
             if (item.id === 'panel-mentor') {
                 const canAccess = isAdmin ||
                     loggedInEmployee.canBeMentor ||
-                    loggedInEmployee.canBeKaUnit;
+                    loggedInEmployee.canBeSupervisor ||
+                    loggedInEmployee.canBeKaUnit ||
+                    loggedInEmployee.canBeManager ||
+                    loggedInEmployee.canBeDirut;
                 return canAccess;
             }
 

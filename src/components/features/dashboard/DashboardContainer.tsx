@@ -1066,7 +1066,7 @@ const DashboardContainer: React.FC<DashboardContainerProps> = ({ initialTab }) =
             onLoadEmployees={loadAllEmployees} // 🔥 FIX: Pass loadAllEmployees so MyDashboard can trigger it
             isLoadingEmployees={isLoadingEmployees} // 🔥 FIX: Pass loading state
             monthlyReportSubmissions={monthlyReportSubmissions}
-            onReviewReport={async (submissionId: string, decision: 'approved' | 'rejected', notes: string | undefined, reviewerRole: 'mentor' | 'supervisor' | 'kaunit') => {
+            onReviewReport={async (submissionId: string, decision: 'approved' | 'rejected', notes: string | undefined, reviewerRole: 'mentor' | 'kaunit') => {
                 try {
                     // 1. Determine new status based on decision and reviewer role
                     let newStatus = 'pending_mentor';

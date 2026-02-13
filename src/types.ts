@@ -376,11 +376,20 @@ export interface MonthlyReportSubmission {
   status: MonthlyReportStatus;
   mentorId: string;
   kaUnitId?: string;
+  managerId?: string;
+  supervisorId?: string;
+  dirutId?: string;
   reports?: MonthlyReports;
   mentorReviewedAt?: number;
   mentorNotes?: string;
   kaUnitReviewedAt?: number;
   kaUnitNotes?: string;
+  managerReviewedAt?: number;
+  managerNotes?: string;
+  supervisorReviewedAt?: number;
+  supervisorNotes?: string;
+  dirutReviewedAt?: number;
+  dirutNotes?: string;
 }
 
 export interface DocumentSubmission {
@@ -476,7 +485,7 @@ export interface MyDashboardViewProps {
   allPrayers: Prayer[];
   activities: Activity[];
   monthlyReportSubmissions: MonthlyReportSubmission[];
-  onReviewReport: (submissionId: string, decision: 'approved' | 'rejected', notes: string | undefined, reviewerRole: 'mentor' | 'supervisor' | 'kaunit') => void;
+  onReviewReport: (submissionId: string, decision: 'approved' | 'rejected', notes: string | undefined, reviewerRole: 'mentor' | 'kaunit') => void;
   tadarusRequests: TadarusRequest[];
   onCreateTadarusSession: (data: Omit<TadarusSession, 'id' | 'createdAt' | 'presentMenteeIds'>) => void;
   onUpdateTadarusSession: (sessionId: string, updates: Partial<TadarusSession>) => void;

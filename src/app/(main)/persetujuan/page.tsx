@@ -46,7 +46,12 @@ export default function PersetujuanPage() {
         return <div className="p-8 text-center text-gray-400">Silakan login terlebih dahulu.</div>;
     }
 
-    const hasApprovalRole = loggedInEmployee.canBeMentor || loggedInEmployee.canBeKaUnit || ['admin', 'super-admin'].includes(loggedInEmployee.role.toLowerCase());
+    const hasApprovalRole = loggedInEmployee.canBeMentor ||
+        loggedInEmployee.canBeKaUnit ||
+        loggedInEmployee.canBeManager ||
+        loggedInEmployee.canBeSupervisor ||
+        loggedInEmployee.canBeDirut ||
+        ['admin', 'super-admin'].includes(loggedInEmployee.role.toLowerCase());
 
     if (!hasApprovalRole) {
         return <div className="p-8 text-center text-gray-400">Anda tidak memiliki akses ke halaman ini.</div>;
@@ -58,7 +63,7 @@ export default function PersetujuanPage() {
         return role;
     };
 
-    const handleReviewReport = async (submissionId: string, decision: 'approved' | 'rejected', notes: string | undefined, reviewerRole: 'supervisor' | 'manager' | 'kaunit' | 'mentor') => {
+    const handleReviewReport = async (submissionId: string, decision: 'approved' | 'rejected', notes: string | undefined, reviewerRole: 'mentor' | 'kaunit') => {
         setIsReviewing(true);
         try {
             const { reviewMonthlyReport } = await import('@/services/monthlySubmissionService');

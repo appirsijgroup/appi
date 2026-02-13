@@ -177,7 +177,7 @@ const StatusFilterButton: React.FC<StatusFilterButtonProps> = ({ filter, label, 
 interface PersetujuanProps {
     loggedInEmployee: Employee;
     monthlyReportSubmissions: MonthlyReportSubmission[];
-    onReviewReport: (submissionId: string, decision: 'approved' | 'rejected', notes: string | undefined, reviewerRole: 'supervisor' | 'manager' | 'kaunit' | 'mentor') => void;
+    onReviewReport: (submissionId: string, decision: 'approved' | 'rejected', notes: string | undefined, reviewerRole: 'mentor' | 'kaunit') => void;
     allUsersData: Record<string, { employee: Employee; attendance: Record<string, unknown>; history: Record<string, unknown>; }>;
     // 🔥 NEW: Manual requests support
     pendingTadarusRequests?: TadarusRequest[]; // Using specific type
@@ -274,6 +274,9 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
             if (mentee) {
                 if (loggedInEmployee.canBeMentor && mentee.mentorId === id) return true;
                 if (loggedInEmployee.canBeKaUnit && mentee.kaUnitId === id) return true;
+                if (loggedInEmployee.canBeManager && mentee.managerId === id) return true;
+                if (loggedInEmployee.canBeSupervisor && mentee.supervisorId === id) return true;
+                if (loggedInEmployee.canBeDirut && mentee.dirutId === id) return true;
             } else {
                 // 🔥 FALLBACK: To be safe
                 return true;
@@ -420,6 +423,11 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
 
                 if (isOriginalMentor || isCurrentMentor || isMyRequest || isSuper) return true;
 
+                if (loggedInEmployee.canBeKaUnit && mentee?.kaUnitId === myId) return true;
+                if (loggedInEmployee.canBeManager && mentee?.managerId === myId) return true;
+                if (loggedInEmployee.canBeSupervisor && mentee?.supervisorId === myId) return true;
+                if (loggedInEmployee.canBeDirut && mentee?.dirutId === myId) return true;
+
                 if (isAdmin) {
                     const managedIds = loggedInEmployee.managedHospitalIds || [];
                     const hId = mentee?.hospitalId || mentee?.hospital_id;
@@ -443,6 +451,10 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
                     notes: r.notes || '-',
                     canReview: r.status === 'pending' && (
                         allUsersData[r.menteeId]?.employee?.mentorId === myId ||
+                        (loggedInEmployee.canBeKaUnit && allUsersData[r.menteeId]?.employee?.kaUnitId === myId) ||
+                        (loggedInEmployee.canBeManager && allUsersData[r.menteeId]?.employee?.managerId === myId) ||
+                        (loggedInEmployee.canBeSupervisor && allUsersData[r.menteeId]?.employee?.supervisorId === myId) ||
+                        (loggedInEmployee.canBeDirut && allUsersData[r.menteeId]?.employee?.dirutId === myId) ||
                         (loggedInEmployee.role === 'super-admin' || loggedInEmployee.canBeBPH || (loggedInEmployee.functional_roles || loggedInEmployee.functionalRoles)?.includes('BPH')) ||
                         (loggedInEmployee.role === 'admin' && (loggedInEmployee.managedHospitalIds || []).includes(allUsersData[r.menteeId]?.employee?.hospitalId || allUsersData[r.menteeId]?.employee?.hospital_id || ''))
                     ),
@@ -461,6 +473,11 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
                 const isAdmin = loggedInEmployee.role === 'admin';
 
                 if (isOriginalMentor || isCurrentMentor || isMyRequest || isSuper) return true;
+
+                if (loggedInEmployee.canBeKaUnit && mentee?.kaUnitId === myId) return true;
+                if (loggedInEmployee.canBeManager && mentee?.managerId === myId) return true;
+                if (loggedInEmployee.canBeSupervisor && mentee?.supervisorId === myId) return true;
+                if (loggedInEmployee.canBeDirut && mentee?.dirutId === myId) return true;
 
                 if (isAdmin) {
                     const managedIds = loggedInEmployee.managedHospitalIds || [];
@@ -485,6 +502,10 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
                     notes: r.reason || r.mentorNotes || '-',
                     canReview: r.status === 'pending' && (
                         allUsersData[r.menteeId]?.employee?.mentorId === myId ||
+                        (loggedInEmployee.canBeKaUnit && allUsersData[r.menteeId]?.employee?.kaUnitId === myId) ||
+                        (loggedInEmployee.canBeManager && allUsersData[r.menteeId]?.employee?.managerId === myId) ||
+                        (loggedInEmployee.canBeSupervisor && allUsersData[r.menteeId]?.employee?.supervisorId === myId) ||
+                        (loggedInEmployee.canBeDirut && allUsersData[r.menteeId]?.employee?.dirutId === myId) ||
                         (loggedInEmployee.role === 'super-admin' || loggedInEmployee.canBeBPH || (loggedInEmployee.functional_roles || loggedInEmployee.functionalRoles)?.includes('BPH')) ||
                         (loggedInEmployee.role === 'admin' && (loggedInEmployee.managedHospitalIds || []).includes(allUsersData[r.menteeId]?.employee?.hospitalId || allUsersData[r.menteeId]?.employee?.hospital_id || ''))
                     ),
@@ -589,7 +610,10 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
                                                 id: selectedSubmission.menteeId,
                                                 name: selectedSubmission.menteeName,
                                                 mentorId: selectedSubmission.mentorId,
-                                                kaUnitId: selectedSubmission.kaUnitId
+                                                kaUnitId: selectedSubmission.kaUnitId,
+                                                managerId: selectedSubmission.managerId,
+                                                supervisorId: selectedSubmission.supervisorId,
+                                                dirutId: selectedSubmission.dirutId,
                                             } as Employee}
                                             dailyActivitiesConfig={dailyActivitiesConfig}
                                             selectedMonth={new Date(selectedSubmission.monthKey + '-02T00:00:00Z')}
@@ -607,7 +631,10 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
                                             id: selectedSubmission.menteeId,
                                             name: selectedSubmission.menteeName,
                                             mentorId: selectedSubmission.mentorId,
-                                            kaUnitId: selectedSubmission.kaUnitId
+                                            kaUnitId: selectedSubmission.kaUnitId,
+                                            managerId: selectedSubmission.managerId,
+                                            supervisorId: selectedSubmission.supervisorId,
+                                            dirutId: selectedSubmission.dirutId,
                                         } as Employee}
                                         monthKey={selectedSubmission.monthKey}
                                         onBack={() => setSelectedSubmissionId(null)}

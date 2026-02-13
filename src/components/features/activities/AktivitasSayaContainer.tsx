@@ -77,8 +77,16 @@ const AktivitasSayaContainer: React.FC<AktivitasSayaContainerProps> = ({ initial
             // 🔥 FIX: Load monthly report submissions to ensure status is up to date
             loadMonthlyReportSubmissions().catch(console.error);
 
-            // 🔥 FIX: Load Requests for Mentor Approval
-            if (loggedInEmployee.canBeMentor || loggedInEmployee.role === 'admin' || loggedInEmployee.role === 'super-admin') {
+            // 🔥 FIX: Load Requests for Mentor/Management Approval
+            const hasManagementRole = loggedInEmployee.canBeMentor ||
+                loggedInEmployee.canBeKaUnit ||
+                loggedInEmployee.canBeManager ||
+                loggedInEmployee.canBeSupervisor ||
+                loggedInEmployee.canBeDirut ||
+                loggedInEmployee.role === 'admin' ||
+                loggedInEmployee.role === 'super-admin';
+
+            if (hasManagementRole) {
                 loadTadarusRequests().catch(console.error);
                 loadMissedPrayerRequests().catch(console.error);
             }
@@ -98,7 +106,10 @@ const AktivitasSayaContainer: React.FC<AktivitasSayaContainerProps> = ({ initial
     // This is necessary because mentee data comes from allUsersData
     useEffect(() => {
         const hasMentorRole = loggedInEmployee?.canBeMentor === true;
-        const hasApprovalRole = loggedInEmployee?.canBeKaUnit === true;
+        const hasApprovalRole = loggedInEmployee?.canBeKaUnit === true ||
+            loggedInEmployee?.canBeManager === true ||
+            loggedInEmployee?.canBeSupervisor === true ||
+            loggedInEmployee?.canBeDirut === true;
 
         // Only load if user has mentor/approval role and allUsersData is mostly empty
         if ((hasMentorRole || hasApprovalRole) && Object.keys(allUsersData).length <= 1) {
@@ -344,6 +355,9 @@ const AktivitasSayaContainer: React.FC<AktivitasSayaContainerProps> = ({ initial
                 menteeName: loggedInEmployee.name,
                 mentorId: loggedInEmployee.mentorId || '',
                 kaUnitId: loggedInEmployee.kaUnitId || '',
+                managerId: loggedInEmployee.managerId || '',
+                supervisorId: loggedInEmployee.supervisorId || '',
+                dirutId: loggedInEmployee.dirutId || '',
                 // 🔥 NEW: Include snapshot of monthly activities
                 content: monthlyActivitySnapshot
             });
@@ -566,7 +580,7 @@ const AktivitasSayaContainer: React.FC<AktivitasSayaContainerProps> = ({ initial
     }, [loggedInEmployee, handleUpdateProfile, dailyActivitiesConfig, isDateValidForMutabaahUpdate, addToast, setLoggedInEmployee]);
 
 
-    const handleReviewReport = useCallback(async (submissionId: string, decision: 'approved' | 'rejected', notes: string | undefined, reviewerRole: 'mentor' | 'kaunit') => {
+    const handleReviewReport = useCallback(async (submissionId: string, decision: 'approved' | 'rejected', notes: string | undefined, reviewerRole: 'mentor' | 'kaunit' | 'manager' | 'supervisor' | 'dirut') => {
         if (!loggedInEmployee) return;
 
         try {
@@ -577,10 +591,23 @@ const AktivitasSayaContainer: React.FC<AktivitasSayaContainerProps> = ({ initial
             } else {
                 if (reviewerRole === 'mentor') status = 'pending_kaunit';
                 else if (reviewerRole === 'kaunit') status = 'approved';
+                else status = 'approved'; // Any higher role approving also results in final approval
             }
 
             // 2. Prepare update payload
-            const updates: { status: string; mentorNotes?: string; mentorReviewedAt?: number; kaUnitNotes?: string; kaUnitReviewedAt?: number } = { status };
+            const updates: {
+                status: string;
+                mentorNotes?: string;
+                mentorReviewedAt?: number;
+                kaUnitNotes?: string;
+                kaUnitReviewedAt?: number;
+                managerNotes?: string;
+                managerReviewedAt?: number;
+                supervisorNotes?: string;
+                supervisorReviewedAt?: number;
+                dirutNotes?: string;
+                dirutReviewedAt?: number;
+            } = { status };
             const now = Date.now();
             if (reviewerRole === 'mentor') {
                 updates.mentorNotes = notes;
@@ -588,6 +615,15 @@ const AktivitasSayaContainer: React.FC<AktivitasSayaContainerProps> = ({ initial
             } else if (reviewerRole === 'kaunit') {
                 updates.kaUnitNotes = notes;
                 updates.kaUnitReviewedAt = now;
+            } else if (reviewerRole === 'manager') {
+                updates.managerNotes = notes;
+                updates.managerReviewedAt = now;
+            } else if (reviewerRole === 'supervisor') {
+                updates.supervisorNotes = notes;
+                updates.supervisorReviewedAt = now;
+            } else if (reviewerRole === 'dirut') {
+                updates.dirutNotes = notes;
+                updates.dirutReviewedAt = now;
             }
 
             // 3. Call service

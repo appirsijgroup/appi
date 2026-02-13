@@ -312,7 +312,19 @@ const MutabaahReport: React.FC<MutabaahReportProps> = ({ allUsersData, hospitals
                                 <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-hover:text-teal-400 transition-colors" />
                             </div>
                         </div>
-                        <div className="md:col-span-4 flex items-end justify-end">
+                        <div className="md:col-span-4 flex items-end justify-end gap-2">
+                            {onLoadHeavyData && (
+                                <button
+                                    onClick={() => onLoadHeavyData()}
+                                    disabled={isLoading || isFetching}
+                                    className="p-2.5 bg-teal-500/10 hover:bg-teal-500/20 rounded-xl transition-all disabled:opacity-20 disabled:cursor-not-allowed group border border-teal-500/20 shadow-sm"
+                                    title="Sinkronisasi Data"
+                                >
+                                    <svg className={`w-5 h-5 text-teal-500 group-hover:rotate-180 transition-transform duration-500 ${(isLoading || isFetching) ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                </button>
+                            )}
                             <button onClick={handleDownloadXlsx} disabled={filteredData.length === 0} className="p-2.5 bg-green-500/10 hover:bg-green-500/20 rounded-xl transition-all disabled:opacity-20 disabled:cursor-not-allowed group border border-green-500/20 shadow-sm" title="Unduh Excel">
                                 <ExcelIcon className="w-5 h-5 text-green-500 group-hover:scale-110 transition-transform" />
                             </button>

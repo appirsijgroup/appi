@@ -137,7 +137,7 @@ export const useGuidanceStore = create<GuidanceState>()(
                     // 2. Fetch Additional Requests based on Role
                     if (loggedInEmployee.role === 'admin' || loggedInEmployee.role === 'super-admin') {
                         requests = await getAllTadarusRequests();
-                    } else if (loggedInEmployee.canBeMentor || loggedInEmployee.canBeKaUnit || loggedInEmployee.canBeDirut) {
+                    } else if (loggedInEmployee.canBeMentor || loggedInEmployee.canBeKaUnit || loggedInEmployee.canBeManager || loggedInEmployee.canBeSupervisor || loggedInEmployee.canBeDirut) {
                         // A. Fetch by Mentor ID (for history/assigned)
                         const assignedRequests = await getTadarusRequestsForMentor(loggedInEmployee.id);
 
@@ -185,7 +185,7 @@ export const useGuidanceStore = create<GuidanceState>()(
                     // 2. Fetch Additional Requests based on Role
                     if (loggedInEmployee.role === 'admin' || loggedInEmployee.role === 'super-admin') {
                         requests = await getAllMissedPrayerRequests();
-                    } else if (loggedInEmployee.canBeMentor || loggedInEmployee.canBeKaUnit || loggedInEmployee.canBeDirut) {
+                    } else if (loggedInEmployee.canBeMentor || loggedInEmployee.canBeKaUnit || loggedInEmployee.canBeManager || loggedInEmployee.canBeSupervisor || loggedInEmployee.canBeDirut) {
                         // A. Fetch by Mentor ID
                         const assignedRequests = await getMissedPrayerRequestsForMentor(loggedInEmployee.id);
 
@@ -224,9 +224,12 @@ export const useGuidanceStore = create<GuidanceState>()(
 
                     // --- PHASE 1: SNAPSHOT & OWN REPORTS (FASTEST) ---
                     // Load reports where this user is explicitly assigned as superior (Handles history accurately)
-                    const rolesToFetch: Array<'mentorId' | 'kaUnitId'> = [];
+                    const rolesToFetch: Array<'mentorId' | 'kaUnitId' | 'managerId' | 'supervisorId' | 'dirutId'> = [];
                     if (loggedInEmployee.canBeMentor) rolesToFetch.push('mentorId');
                     if (loggedInEmployee.canBeKaUnit) rolesToFetch.push('kaUnitId');
+                    if (loggedInEmployee.canBeManager) rolesToFetch.push('managerId');
+                    if (loggedInEmployee.canBeSupervisor) rolesToFetch.push('supervisorId');
+                    if (loggedInEmployee.canBeDirut) rolesToFetch.push('dirutId');
 
                     // Fetch my own reports and snapshot-assigned reports in parallel
                     const [snapshotResults, myReports] = await Promise.all([

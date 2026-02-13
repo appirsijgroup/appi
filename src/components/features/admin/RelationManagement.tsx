@@ -138,7 +138,7 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
 
     const handleRelationChange = async (
         userToUpdate: Employee,
-        field: 'mentorId' | 'kaUnitId' | 'supervisorId' | 'managerId', // dirutId is now automated
+        field: 'mentorId' | 'kaUnitId' | 'supervisorId' | 'managerId' | 'dirutId',
         newId: string | undefined
     ) => {
         // Defensive check
@@ -184,6 +184,7 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
                     kaUnitId: 'Kepala Unit',
                     supervisorId: 'Supervisor',
                     managerId: 'Manajer',
+                    dirutId: 'Dirut',
                 };
 
                 const oldRelationId = userToUpdate[field];
@@ -237,6 +238,7 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
                         kaUnitId: 'Kepala Unit',
                         supervisorId: 'Supervisor',
                         managerId: 'Manajer',
+                        dirutId: 'Dirut',
                     };
 
                     const oldRelationId = userToUpdate[field];
@@ -643,6 +645,17 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
                                     value={editAssignmentModal.kaUnitId ?? undefined}
                                     onChange={id => handleRelationChange(editAssignmentModal, 'kaUnitId', id)}
                                     placeholder="Pilih Ka. Unit"
+                                />
+                            </div>
+
+                            {/* Dirut */}
+                            <div>
+                                <label className="text-sm font-medium text-blue-200 block mb-2">Dirut</label>
+                                <EmployeeSearchableInput
+                                    allUsers={safeAllUsers.filter(u => u.canBeDirut && u.id !== editAssignmentModal.id)}
+                                    value={editAssignmentModal.dirutId ?? undefined}
+                                    onChange={id => handleRelationChange(editAssignmentModal, 'dirutId', id)}
+                                    placeholder="Pilih Dirut"
                                 />
                             </div>
 

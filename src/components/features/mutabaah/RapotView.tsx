@@ -541,20 +541,26 @@ const generateChecklistPdf = async (
         return name || '-';
     };
 
-    const kaUnitName = getDisplayName(employee.kaUnitId);
-    const mentorName = getDisplayName(employee.mentorId);
+    // Signature data - Filter only Mentor and Ka. Unit for faster flow
+    const superiorRoles = [
+        { title: 'Ka. Unit', id: employee.kaUnitId, approved: true }, // Approved if Ka Unit exists
+        { title: 'Mentor', id: employee.mentorId, approved: isMentorApproved },
+    ].filter(role => !!role.id);
 
-    // Calculate column width for 3 signatures
-    const sigSectionWidth = pageWidth - marginLeft - marginRight;
-    const colWidth = sigSectionWidth / 3;
-    const sigStartY = finalY + 5;
-
-    // Signature data
     const signatures = [
-        { title: 'Kepala Unit', name: kaUnitName, nip: employee.kaUnitId || '-', signature: employee.kaUnitId ? allUsersData[employee.kaUnitId]?.employee?.signature : null },
-        { title: 'Mentor', name: mentorName, nip: employee.mentorId || '-', signature: isMentorApproved && employee.mentorId ? allUsersData[employee.mentorId]?.employee?.signature : null },
+        ...superiorRoles.map(role => ({
+            title: role.title,
+            name: getDisplayName(role.id),
+            nip: role.id || '-',
+            signature: role.approved && role.id ? allUsersData[role.id]?.employee?.signature : null
+        })),
         { title: 'Karyawan', name: employee.name, nip: employee.id, signature: employee.signature }
     ];
+
+    // Calculate column width for signatures
+    const sigSectionWidth = pageWidth - marginLeft - marginRight;
+    const colWidth = sigSectionWidth / signatures.length;
+    const sigStartY = finalY + 5;
 
     // Draw each signature column
     for (let i = 0; i < signatures.length; i++) {
@@ -654,6 +660,9 @@ export const CeklisMutabaahView: React.FC<{
 
     const kaUnitName = useMemo(() => getName(employee.kaUnitId), [getName, employee.kaUnitId]);
     const mentorName = useMemo(() => getName(employee.mentorId), [getName, employee.mentorId]);
+    const managerName = useMemo(() => getName(employee.managerId), [getName, employee.managerId]);
+    const supervisorName = useMemo(() => getName(employee.supervisorId), [getName, employee.supervisorId]);
+    const dirutName = useMemo(() => getName(employee.dirutId), [getName, employee.dirutId]);
 
     return (
         <div className="space-y-6">
@@ -795,58 +804,81 @@ export const CeklisMutabaahView: React.FC<{
 
                 {/* Signature Section - Official Document Style */}
                 <div className="mt-8 pt-4">
+                    <div className="grid grid-cols-3 gap-6 text-black max-w-4xl mx-auto">
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-black">
-
-                        {/* Ka. Unit */}
+                        {/* Ka. Unit - KIRI */}
                         <div className="flex flex-col items-center text-center">
-                            <p className="text-xs font-bold uppercase mb-4 h-4">Kepala Unit</p>
+                            <p className="text-xs font-bold uppercase mb-4 h-4">Ka. Unit</p>
                             <div className="h-20 w-full flex items-end justify-center mb-1">
-                                {employee.kaUnitId && allUsersData[employee.kaUnitId]?.employee?.signature ? (
-                                    <NextImage src={allUsersData[employee.kaUnitId].employee.signature!} alt="TTD" width={100} height={64} className="h-16 w-auto object-contain" unoptimized />
+                                {(employee.kaUnitId && allUsersData[employee.kaUnitId]?.employee?.signature) ? (
+                                    <NextImage
+                                        src={allUsersData[employee.kaUnitId].employee.signature!}
+                                        alt="TTD Ka. Unit"
+                                        width={100}
+                                        height={64}
+                                        className="h-16 w-auto object-contain"
+                                        unoptimized
+                                    />
                                 ) : (
-                                    <div className="h-16 w-full flex items-center justify-center">
-                                        {/* Empty space for signature */}
+                                    <div className="h-16 w-full flex items-center justify-center text-gray-400 text-xs">
+                                        {employee.kaUnitId ? 'Belum ditandatangani' : 'Tidak ada Ka. Unit'}
                                     </div>
                                 )}
                             </div>
                             <div className="w-full">
                                 <p className="font-bold text-xs uppercase px-1 min-h-[16px]">
-                                    {kaUnitName || (employee.kaUnitId ? '-' : 'Belum Diatur')}
+                                    {kaUnitName || '-'}
                                 </p>
                                 <div className="border-t border-black w-full my-1"></div>
                                 <p className="text-[10px]">NIP. {employee.kaUnitId || '-'}</p>
                             </div>
                         </div>
 
-
-                        {/* Mentor */}
+                        {/* Mentor - TENGAH */}
                         <div className="flex flex-col items-center text-center">
                             <p className="text-xs font-bold uppercase mb-4 h-4">Mentor</p>
                             <div className="h-20 w-full flex items-end justify-center mb-1">
-                                {isMentorApproved && employee.mentorId && allUsersData[employee.mentorId]?.employee?.signature ? (
-                                    <NextImage src={allUsersData[employee.mentorId].employee.signature!} alt="TTD" width={100} height={64} className="h-16 w-auto object-contain" unoptimized />
+                                {(employee.mentorId && isMentorApproved && allUsersData[employee.mentorId]?.employee?.signature) ? (
+                                    <NextImage
+                                        src={allUsersData[employee.mentorId].employee.signature!}
+                                        alt="TTD Mentor"
+                                        width={100}
+                                        height={64}
+                                        className="h-16 w-auto object-contain"
+                                        unoptimized
+                                    />
                                 ) : (
-                                    <div className="h-16 w-full flex items-center justify-center"></div>
+                                    <div className="h-16 w-full flex items-center justify-center text-gray-400 text-xs">
+                                        {employee.mentorId ? (isMentorApproved ? 'Belum ditandatangani' : 'Menunggu approval') : 'Tidak ada Mentor'}
+                                    </div>
                                 )}
                             </div>
                             <div className="w-full">
                                 <p className="font-bold text-xs uppercase px-1 min-h-[16px]">
-                                    {mentorName || (employee.mentorId ? '-' : 'Belum Diatur')}
+                                    {mentorName || '-'}
                                 </p>
                                 <div className="border-t border-black w-full my-1"></div>
                                 <p className="text-[10px]">NIP. {employee.mentorId || '-'}</p>
                             </div>
                         </div>
 
-                        {/* Karyawan */}
+                        {/* Karyawan - KANAN */}
                         <div className="flex flex-col items-center text-center">
                             <p className="text-xs font-bold uppercase mb-4 h-4">Karyawan</p>
                             <div className="h-20 w-full flex items-end justify-center mb-1">
                                 {employee.signature ? (
-                                    <NextImage src={employee.signature} alt="TTD" width={100} height={64} className="h-16 w-auto object-contain" unoptimized />
+                                    <NextImage
+                                        src={employee.signature}
+                                        alt="TTD Karyawan"
+                                        width={100}
+                                        height={64}
+                                        className="h-16 w-auto object-contain"
+                                        unoptimized
+                                    />
                                 ) : (
-                                    <div className="h-16 w-full flex items-center justify-center"></div>
+                                    <div className="h-16 w-full flex items-center justify-center text-gray-400 text-xs">
+                                        Belum ada tanda tangan
+                                    </div>
                                 )}
                             </div>
                             <div className="w-full">

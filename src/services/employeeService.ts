@@ -296,6 +296,8 @@ export const getManagedEmployeeIds = async (superiorId: string): Promise<string[
     return all.filter(e =>
         e.mentorId === superiorId ||
         e.kaUnitId === superiorId ||
+        e.managerId === superiorId ||
+        e.supervisorId === superiorId ||
         e.dirutId === superiorId
     ).map(e => e.id);
 };

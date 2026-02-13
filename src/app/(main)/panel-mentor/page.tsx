@@ -51,10 +51,10 @@ export default function MentorPanelPage() {
     // Set default view based on role
     useEffect(() => {
         if (!loggedInEmployee) return;
-        if (!loggedInEmployee.canBeMentor && (loggedInEmployee.canBeKaUnit || loggedInEmployee.canBeBPH)) {
+        if (!loggedInEmployee.canBeMentor && (loggedInEmployee.canBeKaUnit || loggedInEmployee.canBeManager || loggedInEmployee.canBeBPH || loggedInEmployee.canBeSupervisor)) {
             setMentorSubView('persetujuan');
         }
-    }, [loggedInEmployee?.canBeMentor, loggedInEmployee?.canBeKaUnit, loggedInEmployee?.canBeBPH, loggedInEmployee]);
+    }, [loggedInEmployee?.canBeMentor, loggedInEmployee?.canBeKaUnit, loggedInEmployee?.canBeManager, loggedInEmployee?.canBeBPH, loggedInEmployee?.canBeSupervisor, loggedInEmployee]);
 
     // 🔥 FIX: Load employees, monthly reports and manual requests on mount
     useEffect(() => {
@@ -84,6 +84,9 @@ export default function MentorPanelPage() {
         loggedInEmployee.canBeBPH ||
         loggedInEmployee.functionalRoles?.includes('BPH') ||
         loggedInEmployee.canBeKaUnit ||
+        loggedInEmployee.canBeManager ||
+        loggedInEmployee.canBeSupervisor ||
+        loggedInEmployee.canBeDirut ||
         loggedInEmployee.role === 'admin' ||
         loggedInEmployee.role === 'super-admin'
     );
@@ -153,7 +156,7 @@ export default function MentorPanelPage() {
     }, [loadDetailedEmployeeData]);
 
     // Handlers
-    const handleReviewReport = React.useCallback(async (submissionId: string, decision: 'approved' | 'rejected', notes: string | undefined, reviewerRole: 'supervisor' | 'manager' | 'kaunit' | 'mentor') => {
+    const handleReviewReport = React.useCallback(async (submissionId: string, decision: 'approved' | 'rejected', notes: string | undefined, reviewerRole: 'mentor' | 'kaunit') => {
         try {
             const { reviewMonthlyReport } = await import('@/services/monthlySubmissionService');
 
@@ -182,15 +185,9 @@ export default function MentorPanelPage() {
             if (reviewerRole === 'mentor') {
                 reviews.mentorNotes = notes;
                 reviews.mentorReviewedAt = Date.now();
-            } else if (reviewerRole === 'supervisor') {
-                reviews.supervisorNotes = notes;
-                reviews.supervisorReviewedAt = Date.now();
             } else if (reviewerRole === 'kaunit') {
                 reviews.kaUnitNotes = notes;
                 reviews.kaUnitReviewedAt = Date.now();
-            } else if (reviewerRole === 'manager') {
-                reviews.managerNotes = notes;
-                reviews.managerReviewedAt = Date.now();
             }
 
 

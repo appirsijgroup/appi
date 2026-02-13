@@ -1670,6 +1670,21 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ allUsersData, activ
         onRefresh(syncStartDate);
     };
 
+    // 🔥 AUTO-SYNC: Trigger sync automatically when period changes to ensure data is available
+    useEffect(() => {
+        // Use a small delay to avoid flickering/multiple calls when multiple states change
+        const timer = setTimeout(() => {
+            if (dateFilterType === 'monthly' && monthFilter) {
+                handleSync();
+            } else if (dateFilterType === 'yearly' && yearFilter) {
+                handleSync();
+            } else if (dateFilterType === 'range' && startDate && endDate) {
+                handleSync();
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [dateFilterType, monthFilter, yearFilter, startDate, endDate]);
+
     return (
         <div className="mt-8">
             <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-6 mb-8 shadow-2xl">
@@ -1913,11 +1928,13 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ allUsersData, activ
 
 // --- Activation Report Component (New) ---
 const ActivationReport: React.FC<{
-    allUsersData: AdminDashboardProps['allUsersData'];
+    allUsersData: Record<string, { employee: Employee }>;
     onShowPreview: (dataUri: string, fileName: string) => void;
     loggedInEmployee: Employee;
     hospitals: Hospital[];
-}> = ({ allUsersData, onShowPreview, loggedInEmployee, hospitals }) => {
+    onRefresh?: (startDate?: string) => void;
+    isLoading?: boolean;
+}> = ({ allUsersData, onShowPreview, loggedInEmployee, hospitals, onRefresh, isLoading }) => {
     const [monthFilter, setMonthFilter] = useState<string>(new Date().toISOString().slice(0, 7));
     const [statusFilter, setStatusFilter] = useState<'all' | 'activated' | 'not-activated'>('all');
     const [searchTerm, setSearchTerm] = useState('');
@@ -1997,6 +2014,20 @@ const ActivationReport: React.FC<{
     useEffect(() => {
         setCurrentPage(1);
     }, [monthFilter, statusFilter, unitFilter, searchTerm]);
+
+    const handleSync = () => {
+        if (onRefresh && monthFilter) {
+            onRefresh(`${monthFilter}-01`);
+        }
+    };
+
+    // 🔥 AUTO-SYNC: Trigger sync automatically when period changes
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (monthFilter) handleSync();
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [monthFilter]);
 
     // Export Handlers
     const handleDownloadXlsx = () => {
@@ -2132,6 +2163,18 @@ const ActivationReport: React.FC<{
                         <div className="mr-auto">
                             <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Total {filteredData.length} Karyawan (Tapis)</p>
                         </div>
+                        <button
+                            onClick={handleSync}
+                            disabled={isLoading}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg ${isLoading
+                                ? 'bg-gray-500/20 text-gray-500 cursor-not-allowed border border-white/5'
+                                : 'bg-teal-500/20 text-teal-400 hover:bg-teal-500/30 border border-teal-500/30'
+                                }`}
+                        >
+                            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                            <span>{isLoading ? 'Menyinkronkan...' : 'Sinkronisasi'}</span>
+                        </button>
+                        <div className="w-px h-6 bg-white/10 mx-1"></div>
                         <button onClick={handlePreviewPdf} disabled={filteredData.length === 0} className="p-2.5 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-all disabled:opacity-20 disabled:cursor-not-allowed group border border-red-500/20 shadow-sm" title="Unduh PDF">
                             <FileDown className="w-5 h-5 text-red-500 group-hover:scale-110 transition-transform" />
                         </button>
@@ -3951,6 +3994,8 @@ div::-webkit-scrollbar {
                                     onShowPreview={(uri, name) => { setPdfDataUri(uri); setPdfFileName(name); setIsPdfPreviewOpen(true); }}
                                     loggedInEmployee={loggedInEmployee}
                                     hospitals={hospitals}
+                                    onRefresh={onLoadHeavyData}
+                                    isLoading={isLoadingEmployees}
                                 />
                             )}
                             {reportSubView === 'quran-competency' && (

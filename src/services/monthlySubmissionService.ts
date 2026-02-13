@@ -8,6 +8,9 @@ export interface MonthlyReportSubmissionPayload {
   menteeName: string;
   mentorId: string;
   kaUnitId?: string;
+  managerId?: string;
+  supervisorId?: string;
+  dirutId?: string;
   content?: any; // Snapshot of activities
   [key: string]: any;
 }
@@ -190,7 +193,7 @@ export const hasSubmittedMonthlyReport = async (
 /**
  * Get all monthly report submissions for a specific superior (Combined roles)
  */
-export const getMonthlyReportsForSuperiorCombined = async (userId: string, roles: Array<'mentorId' | 'kaUnitId'>): Promise<MonthlyReportSubmission[]> => {
+export const getMonthlyReportsForSuperiorCombined = async (userId: string, roles: Array<'mentorId' | 'kaUnitId' | 'managerId' | 'supervisorId' | 'dirutId'>): Promise<MonthlyReportSubmission[]> => {
   if (roles.length === 0) return [];
 
   // Pass roles as comma-separated string to API
