@@ -48,7 +48,6 @@ const allNavItemsRaw = [
     { id: 'aktivitas-bulanan', label: "Lembar Mutaba'ah", icon: CalendarDays, href: '/aktivitas-bulanan' },
     { id: 'jadwal-sesi', label: 'Jadwal & Sesi', icon: CalendarClock, href: '/jadwal-sesi' },
     { id: 'panel-mentor', label: 'Panel Supervisi', icon: Users, href: '/panel-mentor' },
-    { id: 'persetujuan', label: 'Persetujuan', icon: CheckCircle2, href: '/persetujuan' },
     { id: 'pengumuman', label: 'Pengumuman', icon: Megaphone, href: '/pengumuman' },
     { id: 'alquran', label: "Al-Qur'an", icon: BookOpen, href: '/alquran' },
     { id: 'panduan-doa', label: 'Panduan & Doa', icon: HandHeart, href: '/panduan-doa' },
@@ -408,11 +407,6 @@ export default function MainLayoutShell({ children }: { children: React.ReactNod
                 return hasManagementRole;
             }
 
-            // 🔥 Persetujuan: Untuk Mentor, Supervisor, Manager, KaUnit (atau Admin)
-            if (item.id === 'persetujuan') {
-                return hasManagementRole;
-            }
-
             return true;
         });
     }, [isAdmin, loggedInEmployee, allUsersData, userId]); // 🔥 CRITICAL FIX: Use full object for complete dependency coverage
@@ -499,9 +493,11 @@ export default function MainLayoutShell({ children }: { children: React.ReactNod
             // Build the URL based on the link structure
             let viewPath = link.view as string;
 
-            // 🔥 FIX: Map legacy 'dashboard-saya' to '/dashboard'
+            // 🔥 FIX: Map legacy names to new consolidated routes
             if (viewPath === 'dashboard-saya') {
                 viewPath = 'dashboard';
+            } else if (viewPath === 'persetujuan') {
+                viewPath = 'panel-mentor';
             }
 
             const basePath = `/${viewPath}`;

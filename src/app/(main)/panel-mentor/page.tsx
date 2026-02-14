@@ -17,7 +17,13 @@ import { useGuidanceStore } from '@/store/guidanceStore';
 import { useDailyActivitiesStore } from '@/store/dailyActivitiesStore';
 import { MenteeTarget, TadarusSession } from '@/types';
 
+import { useSearchParams } from 'next/navigation';
+
 export default function MentorPanelPage() {
+    const searchParams = useSearchParams();
+    const reportId = searchParams?.get('reportId');
+    const requestId = searchParams?.get('requestId');
+
     const { loggedInEmployee, loadLoggedInEmployee } = useAuthStore();
     const { allUsersData, loadDetailedEmployeeData, loadAllEmployees, loadTeamProgressBulk } = useEmployeeStore();
     const { addToast } = useUIStore();
@@ -33,6 +39,13 @@ export default function MentorPanelPage() {
 
     // State for MentorDashboard subview
     const [mentorSubView, setMentorSubView] = useState<MentorDashboardView>('persetujuan');
+
+    // 🔥 NEW: Auto-switch to 'persetujuan' view if reportId or requestId is present
+    useEffect(() => {
+        if (reportId || requestId) {
+            setMentorSubView('persetujuan');
+        }
+    }, [reportId, requestId]);
 
     // Target management state
     const [targetMenteeId, setTargetMenteeId] = useState('');
@@ -51,10 +64,14 @@ export default function MentorPanelPage() {
     // Set default view based on role
     useEffect(() => {
         if (!loggedInEmployee) return;
-        if (!loggedInEmployee.canBeMentor && (loggedInEmployee.canBeKaUnit || loggedInEmployee.canBeManager || loggedInEmployee.canBeBPH || loggedInEmployee.canBeSupervisor)) {
+
+        const hasFunctionalApproval = (loggedInEmployee.functionalRoles || []).some(r => ['DIREKSI', 'BPH', 'MANAJER', 'KEPALA URUSAN'].includes(r));
+        const hasApprovalRole = loggedInEmployee.canBeKaUnit || loggedInEmployee.canBeManager || loggedInEmployee.canBeBPH || loggedInEmployee.canBeSupervisor || loggedInEmployee.canBeDirut || hasFunctionalApproval;
+
+        if (!loggedInEmployee.canBeMentor && hasApprovalRole) {
             setMentorSubView('persetujuan');
         }
-    }, [loggedInEmployee?.canBeMentor, loggedInEmployee?.canBeKaUnit, loggedInEmployee?.canBeManager, loggedInEmployee?.canBeBPH, loggedInEmployee?.canBeSupervisor, loggedInEmployee]);
+    }, [loggedInEmployee]);
 
     // 🔥 FIX: Load employees, monthly reports and manual requests on mount
     useEffect(() => {

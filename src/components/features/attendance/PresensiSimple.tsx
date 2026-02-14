@@ -466,7 +466,7 @@ const PresensiComponent: React.FC = () => {
           type: 'tadarus_request',
           title: `Persetujuan ${category || 'Sesi'}`,
           message: `${loggedInEmployee.name} mengajukan kehadiran untuk ${category || 'kegiatan'} tgl ${new Date(date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}.`,
-          linkTo: '/persetujuan' as any, // Point directly to Persetujuan page
+          linkTo: '/panel-mentor' as any, // Point directly to Panel Supervisi (consolidated)
           relatedEntityId: newRequest.id
         });
       } catch (noteErr) {

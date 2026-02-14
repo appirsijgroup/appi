@@ -373,7 +373,7 @@ const AktivitasSayaContainer: React.FC<AktivitasSayaContainerProps> = ({ initial
                         type: 'monthly_report_submitted',
                         title: 'Laporan Bulanan Baru',
                         message: `${loggedInEmployee.name} telah mengirimkan laporan bulanan ${monthKey}.`,
-                        linkTo: `/persetujuan?reportId=${newSubmission.id}`,
+                        linkTo: `/panel-mentor?reportId=${newSubmission.id}`,
                         relatedEntityId: newSubmission.id,
                     });
                 }
@@ -668,7 +668,7 @@ const AktivitasSayaContainer: React.FC<AktivitasSayaContainerProps> = ({ initial
                                 type: 'monthly_report_needs_review',
                                 title: 'Validasi Laporan Diperlukan',
                                 message: `Laporan ${submission.menteeName} telah disetujui oleh ${reviewerRole} dan menunggu validasi Anda.`,
-                                linkTo: `/persetujuan?reportId=${submissionId}`,
+                                linkTo: `/panel-mentor?reportId=${submissionId}`,
                                 relatedEntityId: submissionId
                             });
                         }

@@ -157,6 +157,7 @@ export const activities = pgTable("activities", {
     status: text().default('scheduled'),
     audienceType: text("audience_type").notNull(),
     audienceRules: jsonb("audience_rules"),
+    attendanceMode: text("attendance_mode").default('self'),
     createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
@@ -861,6 +862,15 @@ export const monthlyReportSubmissions = pgTable("monthly_report_submissions", {
     managerId: text("manager_id"),
     managerReviewedAt: bigint("manager_reviewed_at", { mode: "number" }),
     managerNotes: text("manager_notes"),
+    dirutId: text("dirut_id"),
+    dirutReviewedAt: bigint("dirut_reviewed_at", { mode: "number" }),
+    dirutNotes: text("dirut_notes"),
+    direksiId: text("direksi_id"),
+    direksiReviewedAt: bigint("direksi_reviewed_at", { mode: "number" }),
+    direksiNotes: text("direksi_notes"),
+    bphId: text("bph_id"),
+    bphReviewedAt: bigint("bph_reviewed_at", { mode: "number" }),
+    bphNotes: text("bph_notes"),
     createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
     reports: jsonb().default({}),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
@@ -892,6 +902,21 @@ export const monthlyReportSubmissions = pgTable("monthly_report_submissions", {
         columns: [table.managerId],
         foreignColumns: [employees.id],
         name: "weekly_report_submissions_manager_id_fkey"
+    }).onDelete("set null"),
+    foreignKey({
+        columns: [table.dirutId],
+        foreignColumns: [employees.id],
+        name: "weekly_report_submissions_dirut_id_fkey"
+    }).onDelete("set null"),
+    foreignKey({
+        columns: [table.direksiId],
+        foreignColumns: [employees.id],
+        name: "weekly_report_submissions_direksi_id_fkey"
+    }).onDelete("set null"),
+    foreignKey({
+        columns: [table.bphId],
+        foreignColumns: [employees.id],
+        name: "weekly_report_submissions_bph_id_fkey"
     }).onDelete("set null"),
     unique("unique_monthly_submission").on(table.menteeId, table.monthKey, table.weekIndex),
     check("weekly_report_submissions_status_check", sql`status IN ('pending_mentor', 'pending_kaunit', 'partially_approved', 'approved', 'rejected_mentor', 'rejected_kaunit')`),
