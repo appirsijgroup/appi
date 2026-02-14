@@ -56,7 +56,7 @@ export default function AdminPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [roleFilter, setRoleFilter] = useState('');
     const [hospitalFilter, setHospitalFilter] = useState('');
-    const [isActiveFilter, setIsActiveFilter] = useState<boolean | undefined>(undefined);
+    const [isActiveFilter, setIsActiveFilter] = useState<boolean | 'all' | undefined>(undefined);
     const [totalCount, setTotalCount] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [employeesLoaded, setEmployeesLoaded] = useState(false); // Track if employees have been loaded
@@ -113,7 +113,7 @@ export default function AdminPage() {
         setPage(1); // Reset to page 1 when filtering
     };
 
-    const handleIsActiveFilter = (isActive: boolean | undefined) => {
+    const handleIsActiveFilter = (isActive: boolean | 'all' | undefined) => {
         setIsActiveFilter(isActive);
         setPage(1); // Reset to page 1 when filtering
     };
@@ -187,7 +187,7 @@ export default function AdminPage() {
             // Load activity metadata for names in reports
             loadActivities().catch(err => console.error('Failed to load activities:', err));
         }
-    }, [page, searchTerm, roleFilter, isActiveFilter, hospitalFilter, loggedInEmployee, isHydrated]); // 🔥 Removed unstable deps like loadAllEmployees/isLoadingEmployees
+    }, [page, searchTerm, roleFilter, isActiveFilter, hospitalFilter, loggedInEmployee, isHydrated, loadPaginatedEmployees, loadAllEmployees, loadActivities]);
 
     // 🔥 Sync local pagination state with store pagination info
     useEffect(() => {
@@ -666,7 +666,7 @@ export default function AdminPage() {
             const relationLabels: Record<string, string> = {
                 mentorId: 'Mentor',
                 supervisorId: 'Supervisor',
-                kaUnitId: 'Kepala Unit'
+                kaUnitId: 'Atasan Langsung'
             };
 
             for (const { camel, snake } of relationFields) {
@@ -705,7 +705,7 @@ export default function AdminPage() {
                         linkTo: {
                             view: 'assignment_letter' as const,
                             params: {
-                                roleName: relationLabels[camel] as 'Mentor' | 'Supervisor' | 'Kepala Unit',
+                                roleName: relationLabels[camel] as 'Mentor' | 'Supervisor' | 'Atasan Langsung',
                                 assignmentType: assignmentType,
                                 assigneeId: newValue || oldValue,
                                 previousAssigneeId: oldValue,

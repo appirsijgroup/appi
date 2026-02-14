@@ -211,15 +211,25 @@ export interface Employee extends RawEmployee {
   activated_months?: string[]; // YYYY-MM-keys (snake_case - from Database)
   monthly_activities?: Record<string, MonthlyActivityProgress>; // snake_case from Database
   kaUnitId?: string | null;
+  kaUnitName?: string | null;
   mentorId?: string | null;
+  mentorName?: string | null;
   supervisorId?: string | null;
+  supervisorName?: string | null;
   managerId?: string | null;
+  managerName?: string | null;
   dirutId?: string | null;
+  dirutName?: string | null;
+  direksiId?: string | null;
+  direksiName?: string | null;
+  bphId?: string | null;
+  bphName?: string | null;
   canBeMentor?: boolean;
   canBeSupervisor?: boolean;
   canBeKaUnit?: boolean;
   canBeManager?: boolean;
   canBeDirut?: boolean;
+  canBeDireksi?: boolean;
   canBeBPH?: boolean;
   functionalRoles?: FunctionalRole[];
   // snake_case support
@@ -379,6 +389,8 @@ export interface MonthlyReportSubmission {
   managerId?: string;
   supervisorId?: string;
   dirutId?: string;
+  direksiId?: string;
+  bphId?: string;
   reports?: MonthlyReports;
   mentorReviewedAt?: number;
   mentorNotes?: string;

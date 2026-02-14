@@ -425,6 +425,37 @@ export async function GET(request: NextRequest) {
       console.error('❌ [API-Local] Error fetching prayer requests:', error);
     }
 
+    // 8. Merge data from employee_quran_reading_history table
+    try {
+      let sql = `SELECT date FROM employee_quran_reading_history WHERE employee_id = $1`;
+      const params: any[] = [employeeId];
+
+      if (startDate && endDate) {
+        sql += ` AND date >= $2 AND date <= $3`;
+        params.push(startDate, endDate);
+      }
+
+      const { rows: quranHistory } = await query(sql, params);
+
+      if (quranHistory && quranHistory.length > 0) {
+        quranHistory.forEach((record: any) => {
+          const date = record.date;
+          const dateStr = date instanceof Date ? date.toISOString().split('T')[0] : date;
+
+          const monthKey = dateStr.substring(0, 7);
+          const dayKey = dateStr.substring(8, 10);
+
+          if (!mergedActivities[monthKey]) mergedActivities[monthKey] = {};
+          if (!mergedActivities[monthKey][dayKey]) mergedActivities[monthKey][dayKey] = {};
+
+          mergedActivities[monthKey][dayKey]['baca_alquran_buku'] = true;
+        });
+        // Merged quran history data
+      }
+    } catch (error) {
+      console.error('❌ [API-Local] Error fetching quran history:', error);
+    }
+
     return NextResponse.json({ activities: mergedActivities });
   } catch (error) {
     console.error('GET /api/monthly-activities error:', error);

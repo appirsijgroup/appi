@@ -114,9 +114,10 @@ export default function PersetujuanPage() {
                 const { createNotification } = useNotificationStore.getState();
 
                 // Notify Mentee
+                const displayReviewer = reviewerRole === 'kaunit' ? 'Atasan Langsung' : 'Mentor';
                 const message = decision === 'approved'
-                    ? `Laporan bulanan bulan ${submission.monthKey} telah disetujui oleh ${reviewerRole}${newStatus === 'approved' ? ' (Sudah Final)' : ''}.`
-                    : `Laporan bulanan bulan ${submission.monthKey} DITOLAK oleh ${reviewerRole}. ${notes ? `Catatan: ${notes}` : ''}`;
+                    ? `Laporan bulanan bulan ${submission.monthKey} telah disetujui oleh ${displayReviewer}${newStatus === 'approved' ? ' (Sudah Final)' : ''}.`
+                    : `Laporan bulanan bulan ${submission.monthKey} DITOLAK oleh ${displayReviewer}. ${notes ? `Catatan: ${notes}` : ''}`;
 
                 createNotification({
                     userId: submission.menteeId,
@@ -136,7 +137,7 @@ export default function PersetujuanPage() {
                             userId: nextReviewerId,
                             type: 'monthly_report_needs_review',
                             title: 'Validasi Laporan Diperlukan',
-                            message: `Laporan ${submission.menteeName} telah disetujui oleh ${reviewerRole} dan menunggu validasi Anda sebagai Ka Unit.`,
+                            message: `Laporan ${submission.menteeName} telah disetujui oleh Mentor dan menunggu validasi Anda sebagai Atasan Langsung.`,
                             linkTo: `/persetujuan?reportId=${submissionId}` as any,
                             relatedEntityId: submissionId
                         });

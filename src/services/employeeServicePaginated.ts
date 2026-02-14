@@ -13,7 +13,7 @@ export interface PaginatedEmployeesParams {
   limit?: number;
   search?: string;
   role?: string;
-  isActive?: boolean;
+  isActive?: boolean | 'all';
   hospitalId?: string;
 }
 

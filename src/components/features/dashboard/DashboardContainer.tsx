@@ -86,7 +86,7 @@ const DashboardContainer: React.FC<DashboardContainerProps> = ({ initialTab }) =
     // Assignment Letter State
     const [assignmentLetter, setAssignmentLetter] = useState<{
         recipient: Employee;
-        roleName: 'Mentor' | 'Supervisor' | 'Kepala Unit';
+        roleName: 'Mentor' | 'Supervisor' | 'Atasan Langsung';
         assignmentType: 'assignment' | 'removal' | 'change' | 'designation' | 'revocation';
         assigneeName?: string;
         previousAssigneeName?: string;

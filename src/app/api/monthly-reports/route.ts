@@ -81,16 +81,32 @@ export async function GET(request: NextRequest) {
 
                 queryStr += ` AND (${roleClauses.join(' OR ')})`;
             } else {
-                queryStr += ` AND (mentor_id = $${superiorIdx} OR ka_unit_id = $${superiorIdx} OR manager_id = $${superiorIdx} OR supervisor_id = $${superiorIdx} OR dirut_id = $${superiorIdx})`;
+                queryStr += ` AND (mentor_id = $${superiorIdx} OR ka_unit_id = $${superiorIdx} OR manager_id = $${superiorIdx} OR supervisor_id = $${superiorIdx})`;
             }
         } else if (menteeIdsParam) {
-            // Admins or specific management check would be needed here for bulk
-            if (!(await isAdmin())) {
-                return NextResponse.json({ error: 'Bulk viewing Restricted to Admins' }, { status: 403 });
-            }
             const menteeIds = menteeIdsParam.split(',');
             params.push(menteeIds);
             queryStr += ` AND mentee_id = ANY($${params.length})`;
+
+            // SECURITY: If not admin, restrict to reports the user is authorized to manage
+            if (!(await isAdmin())) {
+                params.push(session.userId);
+                const sIdx = params.length;
+                queryStr += ` AND (
+                    mentor_id = $${sIdx} OR 
+                    ka_unit_id = $${sIdx} OR 
+                    manager_id = $${sIdx} OR 
+                    supervisor_id = $${sIdx} OR 
+                    mentee_id IN (
+                        SELECT id FROM employees 
+                        WHERE mentor_id = $${sIdx} OR 
+                              ka_unit_id = $${sIdx} OR 
+                              manager_id = $${sIdx} OR 
+                              supervisor_id = $${sIdx} OR 
+                              dirut_id = $${sIdx}
+                    )
+                )`;
+            }
         } else {
             return NextResponse.json({ error: 'At least one filter (menteeId, superiorId, or menteeIds) is required' }, { status: 400 });
         }

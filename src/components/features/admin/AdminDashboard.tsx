@@ -52,6 +52,17 @@ import EmployeeSearchableInput from '@/components/features/admin/EmployeeSearcha
 const RelationManagement = lazy(() => import('@/components/features/admin/RelationManagement'));
 const QuranCompetencyReport = lazy(() => import('@/components/features/quran/QuranCompetencyReport'));
 
+// 🔥 Standarisasi Tipe Kegiatan untuk Filter Laporan
+const ALL_ACTIVITY_TYPES = [
+    'KIE',
+    'DOA BERSAMA',
+    'BBQ',
+    'UMUM',
+    'KAJIAN SELASA',
+    'PENGAJIAN PERSYARIKATAN',
+    'Pengajian Bulanan'
+];
+
 interface AdminDashboardProps {
     allUsersData: Record<string, { employee: Employee; attendance: Attendance; history: Record<string, Attendance> }>;
     loggedInEmployee: Employee;
@@ -101,12 +112,12 @@ interface AdminDashboardProps {
         onPrev: () => void;
         onSearch: (term: string) => void;
         onRoleFilter: (role: string) => void;
-        onIsActiveFilter: (isActive: boolean | undefined) => void;
+        onIsActiveFilter: (isActive: boolean | 'all' | undefined) => void;
         onHospitalFilter: (hospitalId: string) => void;
         onRefresh: () => void;
         searchTerm: string;
         roleFilter: string;
-        isActiveFilter: boolean | undefined;
+        isActiveFilter: boolean | 'all' | undefined;
         hospitalFilter: string;
     };
 }
@@ -919,8 +930,8 @@ const DatabaseKaryawan: React.FC<DatabaseKaryawanProps> = ({
 
     return (
         <div>
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-6">
-                <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:max-w-xl">
+            <div className="flex flex-wrap items-center gap-4 mb-6">
+                <div className="flex flex-col sm:flex-row items-center gap-3 flex-1 min-w-[300px]">
                     <div className="relative w-full">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400/80" />
                         <input
@@ -934,14 +945,14 @@ const DatabaseKaryawan: React.FC<DatabaseKaryawanProps> = ({
 
                     {/* Hospital filter restricted to Super Admin or only showing managed hospitals */}
                     {isSuperAdmin(loggedInEmployee) ? (
-                        <div className="relative w-full sm:w-72 shrink-0">
+                        <div className="relative w-full sm:w-48 shrink-0">
                             <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400/80" />
                             <select
                                 value={pagination?.hospitalFilter || ''}
                                 onChange={e => pagination?.onHospitalFilter(e.target.value)}
                                 className="w-full bg-white/10 hover:bg-white/15 border border-white/20 rounded-xl py-3 pl-9 pr-10 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 focus:outline-none text-white transition-all appearance-none text-sm font-medium cursor-pointer shadow-sm"
                             >
-                                <option value="" className="bg-gray-900">Seluruh Unit RSIJ Group</option>
+                                <option value="" className="bg-gray-900">RSIJ GROUP</option>
                                 {hospitals.map(h => (
                                     <option key={h.id} value={h.id} className="bg-gray-900">
                                         {h.brand}
@@ -953,7 +964,7 @@ const DatabaseKaryawan: React.FC<DatabaseKaryawanProps> = ({
                             </div>
                         </div>
                     ) : (loggedInEmployee.managedHospitalIds && loggedInEmployee.managedHospitalIds.length > 1) ? (
-                        <div className="relative w-full sm:w-72 shrink-0">
+                        <div className="relative w-full sm:w-48 shrink-0">
                             <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400/80" />
                             <select
                                 value={pagination?.hospitalFilter || ''}
@@ -971,8 +982,49 @@ const DatabaseKaryawan: React.FC<DatabaseKaryawanProps> = ({
                             </div>
                         </div>
                     ) : null}
+
+                    {/* 🔥 NEW: Status Filter (Toggle) */}
+                    <div className="relative shrink-0 flex items-center">
+                        <button
+                            onClick={() => {
+                                const currentFilter = pagination?.isActiveFilter;
+                                // Toggle logic: If currently Inactive Only -> Switch to Default (Active). Else -> Inactive Only.
+                                if (currentFilter === false) {
+                                    pagination?.onIsActiveFilter(undefined); // Back to Active (Default)
+                                } else {
+                                    pagination?.onIsActiveFilter(false); // Switch to Inactive Only
+                                }
+                            }}
+                            className={`
+                                relative px-4 py-3 rounded-xl font-medium text-sm transition-all shadow-sm flex items-center gap-2 border w-full sm:w-auto justify-center group
+                                ${pagination?.isActiveFilter === false
+                                    ? 'bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30 ring-1 ring-red-500/30'
+                                    : 'bg-white/10 text-gray-300 border-white/20 hover:bg-white/15 hover:text-white'}
+                            `}
+                            title={pagination?.isActiveFilter === false ? "Klik untuk kembali ke pegawai aktif" : "Klik untuk melihat pegawai non-aktif/arsip"}
+                        >
+                            {pagination?.isActiveFilter === false ? (
+                                <>
+                                    <EyeOff className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Arsip (Non-Aktif)</span>
+                                    <span className="sm:hidden">Non-Aktif</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Users className="w-4 h-4 text-green-400 group-hover:text-green-300 transition-colors" />
+                                    <span className="hidden sm:inline">Pegawai Aktif</span>
+                                    <span className="sm:hidden">Aktif</span>
+                                </>
+                            )}
+
+                            {/* Visual Toggle Switch */}
+                            <div className={`ml-2 w-9 h-5 rounded-full relative transition-colors duration-300 flex items-center ${pagination?.isActiveFilter === false ? 'bg-red-500' : 'bg-gray-600'}`}>
+                                <div className={`absolute w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-all duration-300 ${pagination?.isActiveFilter === false ? 'translate-x-4.5' : 'translate-x-1'}`} />
+                            </div>
+                        </button>
+                    </div>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                     <button onClick={() => setIsImportModalOpen(true)} className="flex-1 sm:flex-none px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 text-sm shadow-lg transition-all active:scale-95">
                         <Upload className="w-5 h-5" />
                         Impor Data
@@ -1331,18 +1383,34 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ allUsersData, activ
 
         const sortedYears = Array.from(years).sort((a, b) => b - a);
 
-        // 🔥 FIX: Add defensive check for activities
-        const reportableEntities = reportType === 'prayer'
-            ? PRAYERS.map(p => p.name)
-            : activities.length > 0 ? activities.map(a => a.name) : [];
+        // 🔥 FIX: Deduplicate Activity Types Robustly (Handling duplicates and whitespace)
+        let finalEntities: string[] = [];
+
+        if (reportType === 'prayer') {
+            finalEntities = PRAYERS.map(p => p.name);
+        } else {
+            // Combine static & dynamic types, trim whitespace, remove empty
+            const rawData = [
+                ...ALL_ACTIVITY_TYPES,
+                ...activities.length > 0 ? activities.map(a => a.activityType) : []
+            ];
+
+            // Normalize and deduplicate using Set
+            const normalizedSet = new Set(
+                rawData.filter(Boolean).map(t => String(t).trim())
+            );
+
+            finalEntities = Array.from(normalizedSet).sort();
+        }
 
         return {
             allUnits: Array.from(units).sort(),
             allProfessions: Array.from(professions).sort(),
             allYearsWithData: sortedYears,
-            allReportableEntities: Array.from(new Set(reportableEntities)).sort(),
+            allReportableEntities: finalEntities,
         };
-    }, [allUsersData, activities, reportType]);
+    }, [allUsersData, activities, reportType]); // End of useMemo
+
 
     useEffect(() => {
         if (allYearsWithData.length > 0 && !yearFilter) {
@@ -1357,7 +1425,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ allUsersData, activ
         // 🔥 ORIGINAL: Use allUsersData for prayer report or fallback
         // 🔥 FIX: Build maps inside useMemo to ensure fresh data
         const currentPrayerMap = new Map(PRAYERS.map(p => [p.id, p.name]));
-        const currentActivityMap = new Map(activities.map(a => [a.id, a.name]));
+        const currentActivityMap = new Map(activities.map(a => [a.id, a.activityType]));
 
         Object.values(allUsersData).forEach(({ employee, attendance, history }) => {
             if (!employee || !employee.id || isAdministrativeAccount(employee.id)) return;
@@ -1625,7 +1693,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ allUsersData, activ
                 ]);
 
         } else {
-            header = ["Tanggal", "RS ID", "NIP", "Nama", "Unit", "Kategori Profesi", "Profesi", 'Nama Kegiatan', "Status", "Waktu Presensi"];
+            header = ["Tanggal", "RS ID", "NIP", "Nama", "Unit", "Kategori Profesi", "Profesi", 'Tipe Kegiatan', "Status", "Waktu Presensi"];
             data = filteredData.map(d => [
                 new Date(d.date).toLocaleDateString('id-ID'), d.hospitalId || '-', d.employeeId, d.employeeName, d.unit, d.professionCategory, d.profession,
                 d.prayerName, d.status, d.timestamp
@@ -1747,7 +1815,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ allUsersData, activ
                         </div>
 
                         <div className="md:col-span-12 lg:col-span-4">
-                            <label className="text-[10px] uppercase tracking-wider font-bold text-teal-400 block mb-1.5 ml-1">{reportType === 'prayer' ? 'Jenis Sholat' : 'Nama Kegiatan'}</label>
+                            <label className="text-[10px] uppercase tracking-wider font-bold text-teal-400 block mb-1.5 ml-1">{reportType === 'prayer' ? 'Jenis Sholat' : 'Tipe Kegiatan'}</label>
                             <select value={entityFilter} onChange={e => setEntityFilter(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:ring-2 focus:ring-teal-500/50 focus:outline-none transition-all hover:bg-black/60">
                                 <option value="all" className="text-black bg-white">{reportType === 'prayer' ? 'Semua Sholat' : 'Semua Kegiatan'}</option>
                                 {allReportableEntities.map(opt => <option key={opt} value={String(opt)} className="text-black bg-white">{opt}</option>)}
@@ -1761,7 +1829,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ allUsersData, activ
                             <div className="md:col-span-1">
                                 <label className="text-[10px] uppercase tracking-wider font-bold text-blue-400 block mb-1.5 ml-1">Rumah Sakit</label>
                                 <select value={hospitalFilter} onChange={e => setHospitalFilter(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:ring-2 focus:ring-blue-500/50 focus:outline-none transition-all hover:bg-black/60">
-                                    <option value="all" className="text-black bg-white">Seluruh Unit RSIJ Group</option>
+                                    <option value="all" className="text-black bg-white">RSIJ GROUP</option>
                                     {hospitals.map(h => <option key={h.id} value={h.id} className="text-black bg-white">{h.brand}</option>)}
                                 </select>
                             </div>
@@ -2661,7 +2729,7 @@ const JabatanManagement: React.FC<JabatanManagementProps> = ({ allUsers, onUpdat
                             onChange={e => setHospitalFilter(e.target.value)}
                             className="w-full bg-white/10 border border-white/20 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-teal-400 focus:outline-none text-sm"
                         >
-                            {isSuperAdmin(loggedInEmployee) && <option value="all" className="bg-gray-800">Seluruh Unit RSIJ Group</option>}
+                            {isSuperAdmin(loggedInEmployee) && <option value="all" className="bg-gray-800">RSIJ GROUP</option>}
                             {hospitals
                                 .filter(h => isSuperAdmin(loggedInEmployee) || (loggedInEmployee.managedHospitalIds && loggedInEmployee.managedHospitalIds.includes(h.id)))
                                 .map(h => (
@@ -3250,7 +3318,7 @@ const HospitalManagement: React.FC<HospitalManagementProps> = ({ hospitals, onAd
 interface ManageRoleAndAccessModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (role: Role, hospitalIds: string[]) => Promise<boolean>;
+    onSave: (role: Role, hospitalIds: string[], functionalRoles: FunctionalRole[]) => Promise<boolean>;
     user: Employee | null;
     availableHospitals: Hospital[];
     loggedInEmployee: Employee;
@@ -3258,18 +3326,33 @@ interface ManageRoleAndAccessModalProps {
 
 const ManageRoleAndAccessModal: React.FC<ManageRoleAndAccessModalProps> = ({ isOpen, onClose, onSave, user, availableHospitals, loggedInEmployee }) => {
     const [selectedRole, setSelectedRole] = useState<Role>('user');
+    const [selectedFunctionalRoles, setSelectedFunctionalRoles] = useState<Set<FunctionalRole>>(new Set());
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (isOpen && user) {
             setSelectedRole(user.role);
+            setSelectedFunctionalRoles(new Set(user.functionalRoles || []));
             setSelectedIds(new Set(user.managedHospitalIds || []));
             setIsSaving(false);
         }
     }, [isOpen, user]);
 
     if (!isOpen || !user) return null;
+
+    const handleToggleFunctionalRole = (role: FunctionalRole) => {
+        if (isSaving) return;
+        setSelectedFunctionalRoles(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(role)) {
+                newSet.delete(role);
+            } else {
+                newSet.add(role);
+            }
+            return newSet;
+        });
+    };
 
     const handleToggleHospital = (hospitalId: string) => {
         if (isSaving) return;
@@ -3288,7 +3371,7 @@ const ManageRoleAndAccessModal: React.FC<ManageRoleAndAccessModalProps> = ({ isO
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const success = await onSave(selectedRole, Array.from(selectedIds));
+            const success = await onSave(selectedRole, Array.from(selectedIds), Array.from(selectedFunctionalRoles));
             if (success) {
                 onClose();
             }
@@ -3298,6 +3381,9 @@ const ManageRoleAndAccessModal: React.FC<ManageRoleAndAccessModalProps> = ({ isO
             setIsSaving(false);
         }
     };
+
+    const isDireksiSelected = selectedFunctionalRoles.has('DIREKSI');
+    const isSpecialRole = selectedRole !== 'user' || isDireksiSelected || selectedFunctionalRoles.has('BPH');
 
     return createPortal(
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-60">
@@ -3350,8 +3436,34 @@ const ManageRoleAndAccessModal: React.FC<ManageRoleAndAccessModalProps> = ({ isO
                         </div>
                     </div>
 
+                    {/* Functional Role Section */}
+                    <div className="space-y-3">
+                        <label className="text-xs font-bold text-teal-400 uppercase tracking-widest pl-1">Penugasan Fungsional (Khusus DIREKSI / Pimpinan)</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-1 gap-3">
+                            <button
+                                type="button"
+                                onClick={() => handleToggleFunctionalRole('DIREKSI')}
+                                className={`relative p-4 rounded-xl border-2 transition-all flex items-center justify-between gap-3 ${selectedFunctionalRoles.has('DIREKSI')
+                                    ? 'bg-amber-500/10 border-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.2)]'
+                                    : 'bg-white/5 border-white/10 hover:border-white/30 text-gray-200 hover:bg-white/10'
+                                    }`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-6 h-6 rounded-md border flex items-center justify-center ${selectedFunctionalRoles.has('DIREKSI') ? 'bg-amber-500 border-amber-500' : 'border-white/20'}`}>
+                                        {selectedFunctionalRoles.has('DIREKSI') && <Check className="w-4 h-4 text-white" />}
+                                    </div>
+                                    <div className="text-left">
+                                        <span className="text-sm font-black uppercase tracking-tight block">DIREKSI</span>
+                                        <span className="text-[10px] text-gray-400 font-normal">Memungkinkan akses monitor Analytics dan data Rumah Sakit terpilih</span>
+                                    </div>
+                                </div>
+                                <Sparkles className={`w-5 h-5 ${selectedFunctionalRoles.has('DIREKSI') ? 'text-amber-400' : 'text-gray-600'}`} />
+                            </button>
+                        </div>
+                    </div>
+
                     {/* Hospital Access */}
-                    {selectedRole !== 'user' && (
+                    {isSpecialRole && (
                         <div className="space-y-4 pt-2">
                             <div className="flex items-center justify-between px-1">
                                 <label className="text-xs font-bold text-teal-400 uppercase tracking-widest">Otoritas Rumah Sakit</label>
@@ -3397,10 +3509,10 @@ const ManageRoleAndAccessModal: React.FC<ManageRoleAndAccessModalProps> = ({ isO
                         </div>
                     )}
 
-                    {selectedRole === 'user' && (
+                    {!isSpecialRole && (
                         <div className="py-12 px-6 bg-white/5 border border-dashed border-white/10 rounded-2xl text-center flex flex-col items-center justify-center gap-3">
                             <Shield className="w-10 h-10 text-gray-600 opacity-30" />
-                            <p className="text-gray-400 text-sm italic">Peran <strong>User</strong> merupakan hak akses standar dan tidak memerlukan konfigurasi wilayah kerja tambahan.</p>
+                            <p className="text-gray-400 text-sm italic">Peran <strong>User</strong> tanpa jabatan khusus merupakan hak akses standar dan tidak memerlukan konfigurasi wilayah kerja tambahan.</p>
                         </div>
                     )}
                 </div>
@@ -3818,19 +3930,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
         }
     };
 
-    const handleUpdateRoleAndAccess = async (newRole: Role, hospitalIds: string[]) => {
+    const handleUpdateRoleAndAccess = async (newRole: Role, hospitalIds: string[], functionalRoles: FunctionalRole[]) => {
         if (!managingAccessFor) return false;
 
-        // 1. Update Role if changed
+        const updates: Partial<Employee> = {
+            managedHospitalIds: hospitalIds,
+            functionalRoles: functionalRoles
+        };
+
+        // Sync boolean flags based on functional roles for efficiency
+        updates.canBeBPH = functionalRoles.includes('BPH');
+        updates.canBeDirut = functionalRoles.includes('DIREKSI');
+        updates.canBeManager = functionalRoles.includes('MANAJER');
+        updates.canBeKaUnit = functionalRoles.includes('KEPALA URUSAN') || functionalRoles.includes('KEPALA RUANGAN');
+
+        // 1. Update System Role if changed
         if (managingAccessFor.role !== newRole) {
             onSetRole(managingAccessFor.id, newRole);
         }
 
-        // 2. Update Hospital Access
-        const success = await onUpdateProfile(managingAccessFor.id, { managedHospitalIds: hospitalIds });
+        // 2. Update Profile (Functional roles & hospital access)
+        const success = await onUpdateProfile(managingAccessFor.id, updates);
 
-        return true;
-        return false;
+        return success;
     };
 
 

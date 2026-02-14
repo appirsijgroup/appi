@@ -390,7 +390,10 @@ export const employees = pgTable("employees", {
     canBeManager: boolean("can_be_manager").default(false),
     canBeKaUnit: boolean("can_be_ka_unit").default(false),
     canBeDirut: boolean("can_be_dirut").default(false),
+    canBeDireksi: boolean("can_be_direksi").default(false),
     canBeBPH: boolean("can_be_bph").default(false),
+    bphId: text("bph_id"),
+    direksiId: text("direksi_id"),
     functionalRoles: text("functional_roles").array().default([""]),
     managerScope: jsonb("manager_scope"),
     signature: text(),
@@ -425,6 +428,16 @@ export const employees = pgTable("employees", {
         columns: [table.dirutId],
         foreignColumns: [table.id],
         name: "employees_dirut_id_fkey"
+    }).onDelete("set null"),
+    foreignKey({
+        columns: [table.bphId],
+        foreignColumns: [table.id],
+        name: "employees_bph_id_fkey"
+    }).onDelete("set null"),
+    foreignKey({
+        columns: [table.direksiId],
+        foreignColumns: [table.id],
+        name: "employees_direksi_id_fkey"
     }).onDelete("set null"),
     foreignKey({
         columns: [table.kaUnitId],

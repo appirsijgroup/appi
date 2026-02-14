@@ -5,7 +5,8 @@ import { createPortal } from 'react-dom';
 import type { Surah, SurahDetail, Employee, MonthlyReportSubmission } from '@/types';
 import type { Bookmark } from '@/services/bookmarkService';
 import { fetchSurahs, fetchSurahDetail } from '@/services/quranService';
-import { Search, ArrowLeft, Bookmark as BookmarkIcon, CheckSquare, Lock, Share2, BookOpen } from 'lucide-react';
+import { getTodayLocalDateString } from '@/utils/dateUtils';
+import { Search, ArrowLeft, Bookmark as BookmarkIcon, CheckSquare, Lock, Share2, BookOpen, CheckCircle2 } from 'lucide-react';
 import { useUIStore } from '@/store/store';
 import { timeValidationService } from '@/services/timeValidationService';
 import MinimalistLoader from '@/components/ui/MinimalistLoader';
@@ -34,13 +35,11 @@ const ReportReadingModal: React.FC<{
     targetEndAyah: number | null;
     monthlyReportSubmissions: MonthlyReportSubmission[];
     todayForMaxDate: string;
-}> = ({ isOpen, onClose, onSubmit, surah, targetEndAyah, monthlyReportSubmissions, todayForMaxDate }) => {
+    loggedInEmployee: Employee;
+}> = ({ isOpen, onClose, onSubmit, surah, targetEndAyah, monthlyReportSubmissions, todayForMaxDate, loggedInEmployee }) => {
     const [startAyah, setStartAyah] = useState('');
     const [endAyah, setEndAyah] = useState('');
-    const [date, setDate] = useState(() => {
-        const correctedTime = timeValidationService.getCorrectedTime();
-        return correctedTime.toISOString().split('T')[0];
-    });
+    const [date, setDate] = useState(() => getTodayLocalDateString());
     const [error, setError] = useState('');
     const hasInitialized = useRef(false);
 
@@ -48,8 +47,7 @@ const ReportReadingModal: React.FC<{
         if (isOpen && !hasInitialized.current) {
             setStartAyah(''); // Start empty for user input
             setEndAyah(String(targetEndAyah || ''));
-            const correctedTime = timeValidationService.getCorrectedTime();
-            setDate(correctedTime.toISOString().split('T')[0]);
+            setDate(getTodayLocalDateString());
             setError('');
             hasInitialized.current = true;
         } else if (!isOpen) {
@@ -57,8 +55,31 @@ const ReportReadingModal: React.FC<{
         }
     }, [isOpen, targetEndAyah]);
 
+    const reportedDates = useMemo(() => {
+        const dates: string[] = [];
+        if (loggedInEmployee.readingHistory) {
+            loggedInEmployee.readingHistory.forEach(h => dates.push(h.dateCompleted));
+        }
+        if (loggedInEmployee.quranReadingHistory) {
+            loggedInEmployee.quranReadingHistory.forEach(h => dates.push(h.date));
+        }
+        return dates;
+    }, [loggedInEmployee.readingHistory, loggedInEmployee.quranReadingHistory]);
+
+    const isDateAlreadyReported = useMemo(() => {
+        // 1. Check from explicit history items
+        if (reportedDates.includes(date)) return true;
+
+        // 2. Check from monthly activities checklist (source of truth)
+        if (!date) return false;
+        const monthKey = date.slice(0, 7);
+        const dayKey = date.slice(8, 10);
+        return loggedInEmployee.monthlyActivities?.[monthKey]?.[dayKey]?.['baca_alquran_buku'] ?? false;
+    }, [reportedDates, date, loggedInEmployee.monthlyActivities]);
+
     const [isLocked, lockReason] = useMemo(() => {
         if (!date) return [true, "Pilih tanggal"];
+        if (isDateAlreadyReported) return [true, "Sudah dilaporkan"];
         const correctedNow = timeValidationService.getCorrectedTime();
         const today = new Date(correctedNow);
         today.setHours(0, 0, 0, 0);
@@ -73,7 +94,7 @@ const ReportReadingModal: React.FC<{
             return [true, "Bulan ini sudah diajukan."];
         }
         return [false, ""];
-    }, [date, monthlyReportSubmissions]);
+    }, [date, monthlyReportSubmissions, isDateAlreadyReported]);
 
     const handleSubmit = () => {
         const start = parseInt(startAyah, 10);
@@ -133,9 +154,16 @@ const ReportReadingModal: React.FC<{
                             onChange={e => setDate(e.target.value)}
                             max={todayForMaxDate}
                             className="w-full bg-white/15 border border-white/30 rounded-lg p-2.5 focus:ring-2 focus:ring-teal-400 focus:outline-none text-white"
-                            style={{ colorScheme: 'dark' }}
                         />
                     </div>
+                    {isDateAlreadyReported && (
+                        <div className="flex items-center justify-center gap-2 px-3 py-2 bg-green-500/20 border border-green-500/50 rounded-xl mt-4">
+                            <CheckCircle2 className="w-5 h-5 text-green-400" />
+                            <span className="text-sm font-bold text-green-400">
+                                Sudah dilaporkan hari ini
+                            </span>
+                        </div>
+                    )}
                     {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
                 </div>
                 {isLocked ? (
@@ -154,9 +182,13 @@ const ReportReadingModal: React.FC<{
                     <div className="mt-6">
                         <button
                             onClick={handleSubmit}
-                            className="w-full py-2 px-4 rounded-lg font-semibold transition-all bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 border border-teal-500/50"
+                            disabled={isLocked}
+                            className={`w-full py-2 px-4 rounded-lg font-semibold transition-all ${isLocked
+                                ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed border-gray-600/30'
+                                : 'bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 border border-teal-500/50'
+                                }`}
                         >
-                            Lapor Aktivitas
+                            {isDateAlreadyReported ? 'Sudah Dilaporkan' : 'Lapor Aktivitas'}
                         </button>
                         <button
                             onClick={onClose}
@@ -181,6 +213,7 @@ export const Alquran: React.FC<AlquranProps> = ({
     clearGoToAyah,
     onQuranReadingSubmission,
     monthlyReportSubmissions,
+    loggedInEmployee,
     setGoToAyah,
     initialSubView = 'surah-list'
 }) => {
@@ -211,10 +244,7 @@ export const Alquran: React.FC<AlquranProps> = ({
 
     const ayahRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-    const todayForMaxDate = useMemo(() => {
-        const correctedTime = timeValidationService.getCorrectedTime();
-        return correctedTime.toISOString().split('T')[0];
-    }, []);
+    const todayForMaxDate = useMemo(() => getTodayLocalDateString(), []);
 
     useEffect(() => {
         const loadSurahs = async () => {
@@ -460,6 +490,7 @@ export const Alquran: React.FC<AlquranProps> = ({
                             targetEndAyah={targetEndAyah}
                             monthlyReportSubmissions={monthlyReportSubmissions}
                             todayForMaxDate={todayForMaxDate}
+                            loggedInEmployee={loggedInEmployee}
                         />
                     </>
                 )}

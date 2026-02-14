@@ -60,6 +60,7 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
     const { createNotification } = useNotificationStore();
     const [searchTerm, setSearchTerm] = useState('');
     const [hospitalFilter, setHospitalFilter] = useState('all');
+    const [unitFilter, setUnitFilter] = useState('all');
     const [editAssignmentModal, setEditAssignmentModal] = useState<Employee | null>(null);
 
     // 🔥 FIX: Use ref to prevent infinite loop
@@ -97,7 +98,34 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
     const potentialKaUnits = useMemo(() => safeAllUsers.filter(u => u.canBeKaUnit === true), [safeAllUsers]);
     const potentialSupervisors = useMemo(() => safeAllUsers.filter(u => u.canBeSupervisor === true), [safeAllUsers]);
     const potentialManagers = useMemo(() => safeAllUsers.filter(u => u.canBeManager === true), [safeAllUsers]);
+    const potentialDireksis = useMemo(() => safeAllUsers.filter(u => u.canBeDireksi === true), [safeAllUsers]);
+    const potentialBPHs = useMemo(() => safeAllUsers.filter(u => u.canBeBPH === true), [safeAllUsers]);
     const designatedDirut = useMemo(() => safeAllUsers.find(u => u.canBeDirut === true), [safeAllUsers]);
+
+    const availableUnits = useMemo(() => {
+        const units = new Set<string>();
+        safeAllUsers.forEach(u => {
+            if (u.unit) units.add(u.unit);
+        });
+        return Array.from(units).sort();
+    }, [safeAllUsers]);
+
+    const atasanLangsungOptions = useMemo(() => {
+        if (!editAssignmentModal) return [];
+        // Memberikan fleksibilitas penuh untuk memilih siapapun sebagai Atasan Langsung (Delegasi)
+        return safeAllUsers;
+    }, [editAssignmentModal, safeAllUsers]);
+
+    const getEffectiveSuperiorId = (user: Employee) => {
+        // Prioritas ke penugasan manual (termasuk delegasi tugas khusus)
+        if (user.kaUnitId) return user.kaUnitId;
+
+        // Fallback ke hierarki standar jika belum ada penugasan manual khusus
+        if (user.canBeDireksi && user.bphId) return user.bphId;
+        if (user.canBeManager && user.direksiId) return user.direksiId;
+        if (user.canBeKaUnit && user.managerId) return user.managerId;
+        return null;
+    };
 
     // Effect to auto-assign DIRUT to all employees when the designated DIRUT changes
     useEffect(() => {
@@ -110,13 +138,22 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
     }, [designatedDirut]);
 
     const filteredUsers = useMemo(() => {
-        if (!searchTerm) return safeAllUsers;
-        const lowerTerm = searchTerm.toLowerCase();
-        return safeAllUsers.filter(u =>
-            u.name.toLowerCase().includes(lowerTerm) ||
-            String(u.id).toLowerCase().includes(lowerTerm)
-        );
-    }, [safeAllUsers, searchTerm]);
+        let results = safeAllUsers;
+
+        if (unitFilter !== 'all') {
+            results = results.filter(u => u.unit === unitFilter);
+        }
+
+        if (searchTerm) {
+            const lowerTerm = searchTerm.toLowerCase();
+            results = results.filter(u =>
+                u.name.toLowerCase().includes(lowerTerm) ||
+                String(u.id).toLowerCase().includes(lowerTerm)
+            );
+        }
+
+        return results;
+    }, [safeAllUsers, searchTerm, unitFilter]);
 
     const sortedUsers = useMemo(() => {
         return [...filteredUsers].sort((a, b) => a.name.localeCompare(b.name));
@@ -133,12 +170,12 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
     // Reset to first page when search term changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm]);
+    }, [searchTerm, unitFilter, hospitalFilter]);
 
 
     const handleRelationChange = async (
         userToUpdate: Employee,
-        field: 'mentorId' | 'kaUnitId' | 'supervisorId' | 'managerId' | 'dirutId',
+        field: 'mentorId' | 'kaUnitId' | 'supervisorId' | 'managerId' | 'dirutId' | 'direksiId' | 'bphId',
         newId: string | undefined
     ) => {
         // Defensive check
@@ -181,10 +218,12 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
             try {
                 const fieldNameMap = {
                     mentorId: 'Mentor',
-                    kaUnitId: 'Kepala Unit',
+                    kaUnitId: 'Atasan Langsung',
                     supervisorId: 'Supervisor',
                     managerId: 'Manajer',
                     dirutId: 'Dirut',
+                    direksiId: 'Direksi',
+                    bphId: 'BPH',
                 };
 
                 const oldRelationId = userToUpdate[field];
@@ -193,6 +232,21 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
 
                 const result = await onUpdateProfile(userToUpdate.id, { [field]: newId });
                 if (result) {
+                    // Update state modal agar nama tidak hilang setelah input
+                    setEditAssignmentModal(prev => prev ? { ...prev, [field]: newId || null } : null);
+
+                    // 🔥 Sync Atasan Langsung (kaUnitId) based on role hierarchy rules
+                    if (field === 'managerId' && userToUpdate.canBeKaUnit) {
+                        await onUpdateProfile(userToUpdate.id, { kaUnitId: newId });
+                        setEditAssignmentModal(prev => prev ? { ...prev, kaUnitId: newId || null } : null);
+                    } else if (field === 'direksiId' && userToUpdate.canBeManager) {
+                        await onUpdateProfile(userToUpdate.id, { kaUnitId: newId });
+                        setEditAssignmentModal(prev => prev ? { ...prev, kaUnitId: newId || null } : null);
+                    } else if (field === 'bphId' && userToUpdate.canBeDireksi) {
+                        await onUpdateProfile(userToUpdate.id, { kaUnitId: newId });
+                        setEditAssignmentModal(prev => prev ? { ...prev, kaUnitId: newId || null } : null);
+                    }
+
                     // Determine assignment type
                     let assignmentType: 'assignment' | 'change' = 'assignment';
                     if (oldRelationId) {
@@ -235,10 +289,12 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
                 try {
                     const fieldNameMap = {
                         mentorId: 'Mentor',
-                        kaUnitId: 'Kepala Unit',
+                        kaUnitId: 'Atasan Langsung',
                         supervisorId: 'Supervisor',
                         managerId: 'Manajer',
                         dirutId: 'Dirut',
+                        direksiId: 'Direksi',
+                        bphId: 'BPH',
                     };
 
                     const oldRelationId = userToUpdate[field];
@@ -246,6 +302,8 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
 
                     const result = await onUpdateProfile(userToUpdate.id, { [field]: null });
                     if (result) {
+                        // Update state modal agar perubahan terlihat langsung
+                        setEditAssignmentModal(prev => prev ? { ...prev, [field]: null } : null);
                         // Create notification for removal
                         const notificationData = {
                             userId: userToUpdate.id,
@@ -276,7 +334,7 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
         <div>
             <h3 className="text-xl font-bold text-white mb-4">Kelola Relasi & Jabatan Fungsional</h3>
 
-            <div className="flex flex-col sm:flex-row gap-4 mb-4 max-w-2xl">
+            <div className="flex flex-col sm:flex-row gap-4 mb-4 w-full">
                 <div className="relative flex-1">
                     <input
                         type="text"
@@ -288,14 +346,14 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 </div>
                 {hospitals.length > 0 && (
-                    <div className="w-full sm:w-64">
+                    <div className="w-full sm:w-48">
                         <select
                             value={hospitalFilter}
                             onChange={e => setHospitalFilter(e.target.value)}
                             className="w-full bg-white/10 border border-white/20 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-teal-400 focus:outline-none text-sm"
                         >
                             {(loggedInEmployee.role === 'super-admin') && (
-                                <option value="all" className="bg-gray-800">Seluruh Unit RSIJ Group</option>
+                                <option value="all" className="bg-gray-800">RSIJ GROUP</option>
                             )}
                             {hospitals
                                 .filter(h => loggedInEmployee.role === 'super-admin' || (loggedInEmployee.managedHospitalIds && loggedInEmployee.managedHospitalIds.includes(h.id)))
@@ -305,6 +363,18 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
                         </select>
                     </div>
                 )}
+                <div className="w-full sm:w-48">
+                    <select
+                        value={unitFilter}
+                        onChange={e => setUnitFilter(e.target.value)}
+                        className="w-full bg-white/10 border border-white/20 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-teal-400 focus:outline-none text-sm"
+                    >
+                        <option value="all" className="bg-gray-800">Seluruh Unit Kerja</option>
+                        {availableUnits.map(unit => (
+                            <option key={unit} value={unit} className="bg-gray-800">{unit}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
             {/* Mobile scroll indicator */}
@@ -318,23 +388,25 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
                         <tr>
                             <th rowSpan={2} className="px-3 py-2 sm:px-4 align-middle border-b-2 border-r border-gray-700 whitespace-nowrap min-w-[200px]">Nama Karyawan</th>
                             <th rowSpan={2} className="px-3 py-2 text-center border-b-2 border-r border-gray-700 whitespace-nowrap min-w-[100px]">RS ID</th>
-                            <th colSpan={6} className="px-2 py-2 text-center border-b-2 border-r border-gray-700 whitespace-nowrap">Kapabilitas Peran</th>
-                            <th colSpan={5} className="px-2 py-2 text-center border-b-2 border-r border-gray-700 whitespace-nowrap">Penugasan Atasan</th>
+                            <th colSpan={7} className="px-2 py-2 text-center border-b-2 border-r border-gray-700 whitespace-nowrap">Kapabilitas Peran</th>
+                            <th colSpan={6} className="px-2 py-2 text-center border-b-2 border-r border-gray-700 whitespace-nowrap">Penugasan Atasan</th>
                             <th rowSpan={2} className="px-3 py-2 text-center border-b-2 border-gray-700 whitespace-nowrap min-w-[100px]">Aksi</th>
                         </tr>
                         <tr>
                             <th className="px-2 py-2 text-center border-b-2 border-gray-700 whitespace-nowrap min-w-[100px]">BPH</th>
                             <th className="px-2 py-2 text-center border-b-2 border-gray-700 whitespace-nowrap min-w-[100px]">Dirut</th>
+                            <th className="px-2 py-2 text-center border-b-2 border-gray-700 whitespace-nowrap min-w-[100px]">Direksi</th>
                             <th className="px-2 py-2 text-center border-b-2 border-gray-700 whitespace-nowrap min-w-[100px]">Manajer</th>
                             <th className="px-2 py-2 text-center border-b-2 border-gray-700 whitespace-nowrap min-w-[100px]">Supervisor</th>
                             <th className="px-2 py-2 text-center border-b-2 border-gray-700 whitespace-nowrap min-w-[100px]">Mentor</th>
-                            <th className="px-2 py-2 text-center border-b-2 border-r border-gray-700 whitespace-nowrap min-w-[100px]">Ka. Unit</th>
+                            <th className="px-2 py-2 text-center border-b-2 border-r border-gray-700 whitespace-nowrap min-w-[100px]">Ka Unit</th>
 
-                            <th className="px-2 py-2 text-center border-b-2 border-gray-700 whitespace-nowrap min-w-[160px]">Dirut</th>
+                            <th className="px-2 py-2 text-center border-b-2 border-gray-700 whitespace-nowrap min-w-[160px]">BPH</th>
+                            <th className="px-2 py-2 text-center border-b-2 border-gray-700 whitespace-nowrap min-w-[160px]">Direksi</th>
                             <th className="px-2 py-2 text-center border-b-2 border-gray-700 whitespace-nowrap min-w-[160px]">Manajer</th>
                             <th className="px-2 py-2 text-center border-b-2 border-gray-700 whitespace-nowrap min-w-[160px]">Supervisor</th>
                             <th className="px-2 py-2 text-center border-b-2 border-gray-700 whitespace-nowrap min-w-[160px]">Mentor</th>
-                            <th className="px-2 py-2 text-center border-b-2 border-r border-gray-700 whitespace-nowrap min-w-[160px]">Ka. Unit</th>
+                            <th className="px-2 py-2 text-center border-b-2 border-r border-gray-700 whitespace-nowrap min-w-[160px]">Atasan Langsung</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -380,6 +452,18 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
                                                 return result;
                                             }}
                                             disabled={designatedDirut && designatedDirut.id !== user.id}
+                                        />
+                                    </div>
+                                </td>
+                                <td className="px-2 py-3 text-center min-w-[80px]">
+                                    <div className="flex justify-center">
+                                        <ToggleSwitch
+                                            checked={!!user.canBeDireksi}
+                                            onChange={async (checked) => {
+                                                const result = await onUpdateProfile(user.id, { canBeDireksi: checked });
+                                                if (!result) throw new Error('Update failed');
+                                                return result;
+                                            }}
                                         />
                                     </div>
                                 </td>
@@ -487,31 +571,31 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
 
                                                 // 🔥 Create notification for role capability change
                                                 if (checked && !user.canBeKaUnit) {
-                                                    // Designation - user baru bisa jadi Ka.Unit
+                                                    // Designation - user baru bisa jadi Atasan Langsung
                                                     await createNotification({
                                                         userId: user.id,
                                                         type: 'account_role_changed',
-                                                        title: 'Penugasan Sebagai Kepala Unit',
-                                                        message: 'Selamat! Anda telah ditugaskan sebagai Kepala Unit. Lihat surat penugasan Anda.',
+                                                        title: 'Penugasan Sebagai Atasan Langsung',
+                                                        message: 'Selamat! Anda telah ditugaskan sebagai Atasan Langsung. Lihat surat penugasan Anda.',
                                                         linkTo: {
                                                             view: 'assignment_letter',
                                                             params: {
-                                                                roleName: 'Kepala Unit',
+                                                                roleName: 'Atasan Langsung',
                                                                 assignmentType: 'designation',
                                                             }
                                                         }
                                                     });
                                                 } else if (!checked && user.canBeKaUnit) {
-                                                    // Revocation - user tidak bisa lagi jadi Ka.Unit
+                                                    // Revocation - user tidak bisa lagi jadi Atasan Langsung
                                                     await createNotification({
                                                         userId: user.id,
                                                         type: 'account_role_changed',
-                                                        title: 'Pencabutan Penugasan Kepala Unit',
-                                                        message: 'Penugasan Anda sebagai Kepala Unit telah berakhir. Lihat surat pemberitahuan.',
+                                                        title: 'Pencabutan Penugasan Atasan Langsung',
+                                                        message: 'Penugasan Anda sebagai Atasan Langsung telah berakhir. Lihat surat pemberitahuan.',
                                                         linkTo: {
                                                             view: 'assignment_letter',
                                                             params: {
-                                                                roleName: 'Kepala Unit',
+                                                                roleName: 'Atasan Langsung',
                                                                 assignmentType: 'revocation',
                                                             }
                                                         }
@@ -525,10 +609,16 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
                                 </td>
 
                                 <td className="px-2 py-3 min-w-[160px]">
-                                    <div className="w-full bg-white/5 border border-white/20 rounded-lg py-2 px-3 text-white text-sm truncate" title={user.dirutId ? (userMap.get(String(user.dirutId).trim()) || `NIP: ${user.dirutId}`) : 'Otomatis'}>
-                                        {user.dirutId ? (userMap.get(String(user.dirutId).trim()) || <span className="text-gray-400 text-xs italic">{user.dirutId}</span>) : <span className="text-gray-400 italic">Otomatis</span>}
+                                    <div className="w-full bg-white/5 border border-white/20 rounded-lg py-2 px-3 text-white text-sm truncate" title={user.bphId ? (userMap.get(String(user.bphId).trim()) || `NIP: ${user.bphId}`) : '-'}>
+                                        {user.bphId ? (userMap.get(String(user.bphId).trim()) || <span className="text-gray-400 text-xs italic">{user.bphId}</span>) : <span className="text-gray-400 italic">-</span>}
                                     </div>
                                 </td>
+                                <td className="px-2 py-3 min-w-[160px]">
+                                    <div className="w-full bg-white/5 border border-white/20 rounded-lg py-2 px-3 text-white text-sm truncate" title={user.direksiId ? (userMap.get(String(user.direksiId).trim()) || `NIP: ${user.direksiId}`) : '-'}>
+                                        {user.direksiId ? (userMap.get(String(user.direksiId).trim()) || <span className="text-gray-400 text-xs italic">{user.direksiId}</span>) : <span className="text-gray-400 italic">-</span>}
+                                    </div>
+                                </td>
+
                                 <td className="px-2 py-3 min-w-[160px]">
                                     <div className="w-full bg-white/5 border border-white/20 rounded-lg py-2 px-3 text-white text-sm truncate" title={user.managerId ? (userMap.get(String(user.managerId).trim()) || `NIP: ${user.managerId}`) : 'Belum ditugaskan'}>
                                         {user.managerId ? (userMap.get(String(user.managerId).trim()) || <span className="text-gray-400 text-xs italic">{user.managerId}</span>) : <span className="text-gray-400 italic">-</span>}
@@ -602,14 +692,25 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
                         </div>
 
                         <div className="space-y-4">
-                            {/* Mentor */}
+                            {/* BPH */}
                             <div>
-                                <label className="text-sm font-medium text-blue-200 block mb-2">Mentor</label>
+                                <label className="text-sm font-medium text-blue-200 block mb-2">BPH</label>
                                 <EmployeeSearchableInput
-                                    allUsers={potentialMentors.filter(m => m.id !== editAssignmentModal.id)}
-                                    value={editAssignmentModal.mentorId ?? undefined}
-                                    onChange={id => handleRelationChange(editAssignmentModal, 'mentorId', id)}
-                                    placeholder="Pilih Mentor"
+                                    allUsers={potentialBPHs.filter(u => u.id !== editAssignmentModal.id)}
+                                    value={editAssignmentModal.bphId ?? undefined}
+                                    onChange={id => handleRelationChange(editAssignmentModal, 'bphId', id)}
+                                    placeholder="Pilih BPH"
+                                />
+                            </div>
+
+                            {/* Direksi */}
+                            <div>
+                                <label className="text-sm font-medium text-blue-200 block mb-2">Direksi</label>
+                                <EmployeeSearchableInput
+                                    allUsers={potentialDireksis.filter(u => u.id !== editAssignmentModal.id)}
+                                    value={editAssignmentModal.direksiId ?? undefined}
+                                    onChange={id => handleRelationChange(editAssignmentModal, 'direksiId', id)}
+                                    placeholder="Pilih Direksi"
                                 />
                             </div>
 
@@ -635,31 +736,27 @@ const RelationManagement: React.FC<RelationManagementProps> = ({ allUsers = [], 
                                 />
                             </div>
 
-
-
-                            {/* Ka. Unit */}
+                            {/* Mentor */}
                             <div>
-                                <label className="text-sm font-medium text-blue-200 block mb-2">Kepala Unit</label>
+                                <label className="text-sm font-medium text-blue-200 block mb-2">Mentor</label>
                                 <EmployeeSearchableInput
-                                    allUsers={potentialKaUnits.filter(u => u.id !== editAssignmentModal.id)}
+                                    allUsers={potentialMentors.filter(m => m.id !== editAssignmentModal.id)}
+                                    value={editAssignmentModal.mentorId ?? undefined}
+                                    onChange={id => handleRelationChange(editAssignmentModal, 'mentorId', id)}
+                                    placeholder="Pilih Mentor"
+                                />
+                            </div>
+
+                            {/* Atasan Langsung */}
+                            <div>
+                                <label className="text-sm font-medium text-blue-200 block mb-2">Atasan Langsung</label>
+                                <EmployeeSearchableInput
+                                    allUsers={atasanLangsungOptions.filter(u => u.id !== editAssignmentModal.id)}
                                     value={editAssignmentModal.kaUnitId ?? undefined}
                                     onChange={id => handleRelationChange(editAssignmentModal, 'kaUnitId', id)}
-                                    placeholder="Pilih Ka. Unit"
+                                    placeholder="Pilih Atasan Langsung"
                                 />
                             </div>
-
-                            {/* Dirut */}
-                            <div>
-                                <label className="text-sm font-medium text-blue-200 block mb-2">Dirut</label>
-                                <EmployeeSearchableInput
-                                    allUsers={safeAllUsers.filter(u => u.canBeDirut && u.id !== editAssignmentModal.id)}
-                                    value={editAssignmentModal.dirutId ?? undefined}
-                                    onChange={id => handleRelationChange(editAssignmentModal, 'dirutId', id)}
-                                    placeholder="Pilih Dirut"
-                                />
-                            </div>
-
-
                         </div>
 
                         <div className="mt-6 pt-4 border-t border-gray-700 flex justify-end gap-3">

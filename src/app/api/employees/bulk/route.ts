@@ -24,9 +24,21 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid IDs provided' }, { status: 400 });
         }
 
-        // Use ANY($1) for efficient bulk selection
+        // Use ANY($1) for efficient bulk selection with joins for names
         const { rows: employees } = await query(
-            `SELECT * FROM employees WHERE id = ANY($1)`,
+            `SELECT e.*, 
+                    m.name as mentor_name, 
+                    k.name as ka_unit_name, 
+                    s.name as supervisor_name,
+                    man.name as manager_name,
+                    d.name as dirut_name
+             FROM employees e
+             LEFT JOIN employees m ON e.mentor_id = m.id
+             LEFT JOIN employees k ON e.ka_unit_id = k.id
+             LEFT JOIN employees s ON e.supervisor_id = s.id
+             LEFT JOIN employees man ON e.manager_id = man.id
+             LEFT JOIN employees d ON e.dirut_id = d.id
+             WHERE e.id = ANY($1)`,
             [ids]
         );
 

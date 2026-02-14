@@ -126,41 +126,11 @@ export default function AlquranPage() {
             if (result) {
                 addToast('✅ Bacaan Al-Qur\'an berhasil disimpan!', 'success');
 
-                // 🔥 CRITICAL FIX: Update Mutabaah with the CORRECT activity field
-                const monthKey = details.date.substring(0, 7); // "YYYY-MM"
-                const dayKey = details.date.substring(8, 10); // "DD"
+                // 🔥 NEW SYNC STRATEGY:
+                // 1. Refresh Mutabaah Store data (it now fetches from the updated API including Quran history)
+                await refreshData();
 
-                const currentMonthProgress = monthlyProgressData[monthKey] || {};
-                const currentDayProgress = currentMonthProgress[dayKey] || {};
-
-                // 🔥 FIX: BERSIHKAN data sebelum disimpan!
-                // Filter out any foreign fields from current month data
-                const cleanedMonthProgress: any = {};
-                Object.keys(currentMonthProgress).forEach(key => {
-                    // HANYA simpan jika key adalah 2 digit angka (tanggal 01-31)
-                    if (key.match(/^\d{2}$/)) {
-                        cleanedMonthProgress[key] = currentMonthProgress[key];
-                    }
-                    // Field asing (kie, doaBersama, dll) akan DIHAPUS!
-                });
-
-                // ✅ Use the same field as the activity ID: 'baca_alquran_buku'
-                const updatedDayProgress = {
-                    ...currentDayProgress,
-                    'baca_alquran_buku': true,
-                };
-
-                const updatedMonthProgress = {
-                    ...cleanedMonthProgress,
-                    [dayKey]: updatedDayProgress,
-                };
-
-
-                await updateMonthlyProgress(monthKey, updatedMonthProgress);
-
-
-                // 🔥 CRITICAL: Reload employee data to refresh quranReadingHistory
-                // This ensures Dashboard shows the updated reading history
+                // 2. Refresh Employee data to sync other parts of the UI
                 const { getEmployeeById } = await import('@/services/employeeService');
                 const updatedEmployee = await getEmployeeById(loggedInEmployee.id);
                 if (updatedEmployee) {
@@ -179,13 +149,11 @@ export default function AlquranPage() {
                         }
                     }));
 
-                    // 🔥 ALSO SYNC MUTABAAH STORE activation status
-                    const { useMutabaahStore } = await import('@/store/mutabaahStore');
+                    // Sync mutabaah store base state
                     await useMutabaahStore.getState().initializeFromEmployee(updatedEmployee);
+                    // One more refresh to be absolutely sure everything is merged
+                    await useMutabaahStore.getState().refreshData();
                 }
-
-                // Reload data to refresh UI
-                await refreshData();
             } else {
                 addToast('❌ Gagal menyimpan bacaan. Silakan coba lagi.', 'error');
             }

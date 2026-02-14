@@ -615,7 +615,18 @@ const Analytics: React.FC<AnalyticsProps> = ({ allUsersData, dailyActivitiesConf
         fetchStats();
     }, [hospitalFilter, currentMonth, isFilterInitialized]);
 
-    const canSeeGlobal = useMemo(() => loggedInEmployee && (loggedInEmployee.canBeBPH || loggedInEmployee.functionalRoles?.includes('BPH') || (loggedInEmployee as any).functional_roles?.includes('BPH') || isSuperAdmin(loggedInEmployee)), [loggedInEmployee]);
+    const canSeeGlobal = useMemo(() => {
+        if (!loggedInEmployee) return false;
+        const hasBPH = loggedInEmployee.canBeBPH ||
+            loggedInEmployee.functionalRoles?.includes('BPH') ||
+            (loggedInEmployee as any).functional_roles?.includes('BPH');
+        return hasBPH || isSuperAdmin(loggedInEmployee);
+    }, [loggedInEmployee]);
+
+    const showHospitalSelector = useMemo(() => {
+        return canSeeGlobal || accessibleHospitals.length > 1;
+    }, [canSeeGlobal, accessibleHospitals]);
+
     const isGlobal = hospitalFilter === 'all';
 
     const allUsers = useMemo(() => {
@@ -643,7 +654,7 @@ const Analytics: React.FC<AnalyticsProps> = ({ allUsersData, dailyActivitiesConf
                         <button onClick={() => setViewMode('overview')} className={`flex items-center justify-center px-4 py-3 rounded-lg text-xs md:text-sm font-bold transition-all ${viewMode === 'overview' ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/20' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}><BarChart3 size={16} className="mr-2" />RINGKASAN</button>
                         <button onClick={() => setViewMode('detailed')} className={`flex items-center justify-center px-4 py-3 rounded-lg text-xs md:text-sm font-bold transition-all ${viewMode === 'detailed' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}><PieChartIcon size={16} className="mr-2" />ANALISIS KERJA</button>
                     </div>
-                    {canSeeGlobal && (
+                    {showHospitalSelector && (
                         <div className="w-full md:w-80 relative shrink-0">
                             <Building2 size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                             <select
@@ -651,7 +662,7 @@ const Analytics: React.FC<AnalyticsProps> = ({ allUsersData, dailyActivitiesConf
                                 onChange={e => setHospitalFilter(e.target.value)}
                                 className={`w-full bg-black/60 border ${isGlobal ? 'border-amber-500/40 text-amber-200' : 'border-teal-500/40 text-teal-200'} rounded-xl pl-11 pr-10 py-3.5 appearance-none cursor-pointer font-bold transition-colors focus:outline-none focus:ring-2 ${isGlobal ? 'focus:ring-amber-500/20' : 'focus:ring-teal-500/20'}`}
                             >
-                                <option value="all" className="bg-slate-900 text-white">RSIJ GROUP</option>
+                                {canSeeGlobal && <option value="all" className="bg-slate-900 text-white">RSIJ GROUP</option>}
                                 {accessibleHospitals.map(h => (
                                     <option key={h.id} value={h.id} className="bg-slate-900 text-white">
                                         {h.brand}

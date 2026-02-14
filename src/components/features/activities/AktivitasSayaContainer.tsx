@@ -55,7 +55,7 @@ const AktivitasSayaContainer: React.FC<AktivitasSayaContainerProps> = ({ initial
     // Assignment Letter State
     const [assignmentLetter, setAssignmentLetter] = useState<{
         recipient: Employee;
-        roleName: 'Mentor' | 'Kepala Unit';
+        roleName: 'Mentor' | 'Atasan Langsung';
         assignmentType: 'assignment' | 'removal' | 'change' | 'designation' | 'revocation';
         assigneeName?: string;
         previousAssigneeName?: string;
@@ -91,7 +91,7 @@ const AktivitasSayaContainer: React.FC<AktivitasSayaContainerProps> = ({ initial
                 loadMissedPrayerRequests().catch(console.error);
             }
         }
-    }, [loggedInEmployee?.id, loggedInEmployee?.canBeMentor, loggedInEmployee?.role, loadDetailedEmployeeData, loadMonthlyReportSubmissions, loadTadarusRequests, loadMissedPrayerRequests]);
+    }, [loggedInEmployee?.id, loggedInEmployee?.canBeMentor, loggedInEmployee?.canBeKaUnit, loggedInEmployee?.canBeManager, loggedInEmployee?.canBeSupervisor, loggedInEmployee?.canBeDirut, loggedInEmployee?.role, loadDetailedEmployeeData, loadMonthlyReportSubmissions, loadTadarusRequests, loadMissedPrayerRequests]);
 
 
     // 🔥 NEW: Trigger detailed load when activityStatsRefreshCounter changes
@@ -117,7 +117,7 @@ const AktivitasSayaContainer: React.FC<AktivitasSayaContainerProps> = ({ initial
                 console.error('⚠️ [AktivitasSayaContainer] Failed to load all employees:', err);
             });
         }
-    }, [loggedInEmployee?.canBeMentor, loggedInEmployee?.canBeKaUnit, allUsersData, loadAllEmployees]);
+    }, [loggedInEmployee?.canBeMentor, loggedInEmployee?.canBeKaUnit, loggedInEmployee?.canBeManager, loggedInEmployee?.canBeSupervisor, loggedInEmployee?.canBeDirut, allUsersData, loadAllEmployees]);
 
     // --- Handlers ---
     const handleUpdateProfile = useCallback(async (userId: string, updates: Partial<Omit<Employee, 'id' | 'password'>>) => {
@@ -347,8 +347,9 @@ const AktivitasSayaContainer: React.FC<AktivitasSayaContainerProps> = ({ initial
         if (!loggedInEmployee) return;
 
         try {
-            // 🔥 SNAPSHOT: Capture current monthly activities for this month
-            const monthlyActivitySnapshot = loggedInEmployee.monthlyActivities?.[monthKey] || {};
+            // 🔥 SNAPSHOT: Use the most up-to-date monthly activities (from allUsersData or loggedInEmployee)
+            const currentEmployeeData = allUsersData[loggedInEmployee.id]?.employee || loggedInEmployee;
+            const monthlyActivitySnapshot = currentEmployeeData.monthlyActivities?.[monthKey] || {};
 
             const { submitMonthlyReport } = await import('@/services/monthlySubmissionService');
             const newSubmission = await submitMonthlyReport(loggedInEmployee.id, monthKey, {
@@ -658,7 +659,7 @@ const AktivitasSayaContainer: React.FC<AktivitasSayaContainerProps> = ({ initial
 
                         if (reviewerRole === 'mentor') {
                             nextReviewerId = updatedSubmission.kaUnitId || '';
-                            nextRoleLabel = 'Kepala Unit';
+                            nextRoleLabel = 'Atasan Langsung';
                         }
 
                         if (nextReviewerId) {
@@ -685,7 +686,7 @@ const AktivitasSayaContainer: React.FC<AktivitasSayaContainerProps> = ({ initial
 
     const handleOpenAssignmentLetter = (detail: {
         recipient: Employee;
-        roleName: 'Mentor' | 'Kepala Unit';
+        roleName: 'Mentor' | 'Atasan Langsung';
         assignmentType: 'assignment' | 'removal' | 'change' | 'designation' | 'revocation';
         assigneeName?: string;
         previousAssigneeName?: string;
@@ -701,8 +702,35 @@ const AktivitasSayaContainer: React.FC<AktivitasSayaContainerProps> = ({ initial
             dailyActivitiesConfig={dailyActivitiesConfig}
             onLogBookReading={handleLogBookReading}
             onLogManualActivity={handleLogManualActivity}
-            onDeleteReadingHistory={(type, id, date) => {
-                // Implementation would go here
+            onDeleteReadingHistory={async (type, id, date) => {
+                if (!loggedInEmployee) return;
+
+                try {
+                    let success = false;
+                    if (type === 'book') {
+                        const { deleteReadingHistory } = await import('@/services/readingHistoryService');
+                        success = await deleteReadingHistory(id);
+                    } else if (type === 'quran') {
+                        const { deleteQuranSubmission } = await import('@/services/quranSubmissionService');
+                        success = await deleteQuranSubmission(id, loggedInEmployee.id);
+                    }
+
+                    if (success) {
+                        addToast('Riwayat bacaan berhasil dihapus', 'success');
+
+                        // Refresh all relevant data
+                        await loadDetailedEmployeeData(loggedInEmployee.id, true);
+
+                        // Also refresh Mutabaah store to update the checklist
+                        const { useMutabaahStore } = await import('@/store/mutabaahStore');
+                        await useMutabaahStore.getState().refreshData();
+                    } else {
+                        addToast('Gagal menghapus riwayat bacaan. Silakan coba lagi.', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting reading history:', error);
+                    addToast('Terjadi kesalahan saat menghapus riwayat bacaan.', 'error');
+                }
             }}
             submissions={monthlyReportSubmissions}
             allUsersData={allUsersData}

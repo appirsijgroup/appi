@@ -48,6 +48,7 @@ const allNavItemsRaw = [
     { id: 'aktivitas-bulanan', label: "Lembar Mutaba'ah", icon: CalendarDays, href: '/aktivitas-bulanan' },
     { id: 'jadwal-sesi', label: 'Jadwal & Sesi', icon: CalendarClock, href: '/jadwal-sesi' },
     { id: 'panel-mentor', label: 'Panel Supervisi', icon: Users, href: '/panel-mentor' },
+    { id: 'persetujuan', label: 'Persetujuan', icon: CheckCircle2, href: '/persetujuan' },
     { id: 'pengumuman', label: 'Pengumuman', icon: Megaphone, href: '/pengumuman' },
     { id: 'alquran', label: "Al-Qur'an", icon: BookOpen, href: '/alquran' },
     { id: 'panduan-doa', label: 'Panduan & Doa', icon: HandHeart, href: '/panduan-doa' },
@@ -150,7 +151,7 @@ export default function MainLayoutShell({ children }: { children: React.ReactNod
     // 🔥 Assignment Letter Modal State
     const [assignmentLetter, setAssignmentLetter] = useState<{
         recipient: Employee;
-        roleName: 'Mentor' | 'Supervisor' | 'Kepala Unit';
+        roleName: 'Mentor' | 'Supervisor' | 'Atasan Langsung';
         assignmentType: 'assignment' | 'removal' | 'change' | 'designation' | 'revocation';
         assigneeName?: string;
         previousAssigneeName?: string;
@@ -350,10 +351,22 @@ export default function MainLayoutShell({ children }: { children: React.ReactNod
     // 🔥 FIX: Extract role to a stable variable to prevent unnecessary recalculations
     const userRole = loggedInEmployee?.role;
     const userId = loggedInEmployee?.id;
+    const { allUsersData } = useEmployeeStore();
     const isAdmin = useMemo(() => isAnyAdmin(loggedInEmployee), [loggedInEmployee]); // Full object requested by isAnyAdmin logic
 
     const filteredNavItems = useMemo(() => {
         if (!loggedInEmployee) return [];
+
+        // Check if user is delegated as a supervisor/mentor for ANYONE, even if they lack the explicit role flag
+        // This covers "Atasan Langsung" assigned via Relation Management modal who might be a regular staff member
+        const isDelegatedSupervisor = Object.values(allUsersData || {}).some(userData => {
+            const e = userData.employee;
+            return e.kaUnitId === userId ||
+                e.supervisorId === userId ||
+                e.managerId === userId ||
+                e.mentorId === userId ||
+                e.dirutId === userId;
+        });
 
         // Check if user has any management/assignment role (Mentor, SPV, KaUnit, Manager, Dirut, or Admin)
         const hasManagementRole =
@@ -362,7 +375,8 @@ export default function MainLayoutShell({ children }: { children: React.ReactNod
             loggedInEmployee.canBeSupervisor ||
             loggedInEmployee.canBeKaUnit ||
             loggedInEmployee.canBeManager ||
-            loggedInEmployee.canBeDirut;
+            loggedInEmployee.canBeDirut ||
+            isDelegatedSupervisor;
 
         return allNavItemsRaw.filter(item => {
             // 🔥 Admin Dashboard: ONLY for Admin and Super Admin roles
@@ -391,18 +405,17 @@ export default function MainLayoutShell({ children }: { children: React.ReactNod
 
             // 🔥 Panel Supervisi (Universal): Untuk Mentor, Supervisor, Manager, KaUnit (atau Admin)
             if (item.id === 'panel-mentor') {
-                const canAccess = isAdmin ||
-                    loggedInEmployee.canBeMentor ||
-                    loggedInEmployee.canBeSupervisor ||
-                    loggedInEmployee.canBeKaUnit ||
-                    loggedInEmployee.canBeManager ||
-                    loggedInEmployee.canBeDirut;
-                return canAccess;
+                return hasManagementRole;
+            }
+
+            // 🔥 Persetujuan: Untuk Mentor, Supervisor, Manager, KaUnit (atau Admin)
+            if (item.id === 'persetujuan') {
+                return hasManagementRole;
             }
 
             return true;
         });
-    }, [isAdmin, loggedInEmployee]); // 🔥 CRITICAL FIX: Use full object for complete dependency coverage
+    }, [isAdmin, loggedInEmployee, allUsersData, userId]); // 🔥 CRITICAL FIX: Use full object for complete dependency coverage
 
 
     const activeTitle = useMemo(() =>

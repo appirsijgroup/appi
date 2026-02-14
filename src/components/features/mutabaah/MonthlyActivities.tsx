@@ -89,8 +89,8 @@ const MonthlyActivities: React.FC<MonthlyActivitiesProps> = ({
     const kaUnit = useMemo(() => userMap.get(String(employee.kaUnitId || '').trim()), [userMap, employee.kaUnitId]);
     const mentor = useMemo(() => userMap.get(String(employee.mentorId || '').trim()), [userMap, employee.mentorId]);
 
-    const kaUnitName = kaUnit?.name;
-    const mentorName = mentor?.name;
+    const kaUnitName = kaUnit?.name || employee.kaUnitName;
+    const mentorName = mentor?.name || employee.mentorName;
 
     const monthKey = useMemo(() => {
         return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -274,10 +274,10 @@ const MonthlyActivities: React.FC<MonthlyActivitiesProps> = ({
 
     const statusConfig: Record<string, { label: string; color: string; dot: string }> = {
         pending_mentor: { label: "Menunggu Mentor", color: "bg-yellow-500/20 text-yellow-300", dot: "bg-yellow-400" },
-        pending_kaunit: { label: "Menunggu Ka. Unit", color: "bg-yellow-500/20 text-yellow-300", dot: "bg-yellow-400 animate-pulse" },
+        pending_kaunit: { label: "Menunggu Atasan Langsung", color: "bg-yellow-500/20 text-yellow-300", dot: "bg-yellow-400 animate-pulse" },
         approved: { label: "Disetujui", color: "bg-green-500/20 text-green-300", dot: "bg-green-400" },
         rejected_mentor: { label: "Ditolak Mentor", color: "bg-red-500/20 text-red-300", dot: "bg-red-400" },
-        rejected_kaunit: { label: "Ditolak Ka. Unit", color: "bg-red-500/20 text-red-300", dot: "bg-red-400" },
+        rejected_kaunit: { label: "Ditolak Atasan Langsung", color: "bg-red-500/20 text-red-300", dot: "bg-red-400" },
     };
 
     const todayFixed = useMemo(() => {
@@ -596,7 +596,7 @@ const MonthlyActivities: React.FC<MonthlyActivitiesProps> = ({
                                 <h4 className="text-lg font-semibold text-white mb-6 tracking-wide">Pihak yang Menyetujui</h4>
                                 <div className="flex flex-col sm:flex-row justify-between items-stretch gap-4 sm:gap-6">
                                     {[
-                                        { role: 'Kepala Unit', id: employee.kaUnitId, name: kaUnitName, signature: kaUnit?.signature },
+                                        { role: 'ATASAN LANGSUNG', id: employee.kaUnitId, name: kaUnitName, signature: kaUnit?.signature },
                                         { role: 'Mentor', id: employee.mentorId, name: mentorName, signature: mentor?.signature },
                                         { role: 'Karyawan', id: employee.id, name: employee.name, signature: employee.signature }
                                     ].map((person, idx) => (

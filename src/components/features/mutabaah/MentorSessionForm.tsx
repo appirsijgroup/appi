@@ -120,6 +120,7 @@ export const MentorSessionForm = ({
 
             setAttendanceMode('leader');
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isEditing, initialData, availableTypes]); // Removed 'type', 'name' to prevent overwrite loop
 
     // Auto-fill name based on type

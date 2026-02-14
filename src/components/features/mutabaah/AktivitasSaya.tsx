@@ -89,6 +89,7 @@ const AktivitasSaya: React.FC<AktivitasSayaProps> = (props) => {
                     <RiwayatBacaan
                         employee={props.employee}
                         onDeleteReadingHistory={props.onDeleteReadingHistory}
+                        submissions={props.monthlyReportSubmissions}
                     />
                 );
             case 'status-pengajuan':

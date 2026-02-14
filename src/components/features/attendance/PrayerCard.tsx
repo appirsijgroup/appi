@@ -12,9 +12,10 @@ interface PrayerCardProps {
   onTidakHadir: () => void;
   onUbah: () => void;
   isAdmin?: boolean;
+  loading?: boolean;
 }
 
-const PrayerCard: React.FC<PrayerCardProps> = ({ prayer, attendanceStatus, isActive, isTimePast, onHadir, onTidakHadir, onUbah, isAdmin }) => {
+const PrayerCard: React.FC<PrayerCardProps> = ({ prayer, attendanceStatus, isActive, isTimePast, onHadir, onTidakHadir, onUbah, isAdmin, loading }) => {
   const isSubmitted = !!attendanceStatus?.submitted;
 
   const cardClasses = `
@@ -77,10 +78,20 @@ const PrayerCard: React.FC<PrayerCardProps> = ({ prayer, attendanceStatus, isAct
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">
-            <button onClick={onHadir} disabled={!isActive && !isAdmin} className="py-2 px-2 rounded-lg font-semibold flex items-center justify-center transition-all duration-300 bg-green-500 hover:bg-green-400 text-white shadow-md disabled:bg-gray-500/50 disabled:cursor-not-allowed">
-              Hadir
+            <button
+              onClick={onHadir}
+              disabled={(!isActive && !isAdmin) || loading}
+              className={`py-2 px-2 rounded-lg font-semibold flex items-center justify-center transition-all duration-300 shadow-md ${(!isActive && !isAdmin) || loading ? 'bg-gray-500/50 cursor-not-allowed' : 'bg-green-500 hover:bg-green-400 text-white'}`}
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              ) : 'Hadir'}
             </button>
-            <button onClick={onTidakHadir} disabled={!isActive && !isAdmin} className="py-2 px-2 rounded-lg font-semibold flex items-center justify-center transition-all duration-300 bg-red-500 hover:bg-red-400 text-white shadow-md disabled:bg-gray-500/50 disabled:cursor-not-allowed">
+            <button
+              onClick={onTidakHadir}
+              disabled={(!isActive && !isAdmin) || loading}
+              className={`py-2 px-2 rounded-lg font-semibold flex items-center justify-center transition-all duration-300 shadow-md ${(!isActive && !isAdmin) || loading ? 'bg-gray-500/50 cursor-not-allowed' : 'bg-red-500 hover:bg-red-400 text-white'}`}
+            >
               Tidak
             </button>
           </div>

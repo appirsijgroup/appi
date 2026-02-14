@@ -541,9 +541,9 @@ const generateChecklistPdf = async (
         return name || '-';
     };
 
-    // Signature data - Filter only Mentor and Ka. Unit for faster flow
+    // Signature data - Filter only Mentor and Atasan Langsung for faster flow
     const superiorRoles = [
-        { title: 'Ka. Unit', id: employee.kaUnitId, approved: true }, // Approved if Ka Unit exists
+        { title: 'ATASAN LANGSUNG', id: employee.kaUnitId, approved: true }, // Approved if Atasan Langsung exists
         { title: 'Mentor', id: employee.mentorId, approved: isMentorApproved },
     ].filter(role => !!role.id);
 
@@ -658,11 +658,22 @@ export const CeklisMutabaahView: React.FC<{
         return userMap.get(normalizedId) || null;
     }, [userMap]);
 
-    const kaUnitName = useMemo(() => getName(employee.kaUnitId), [getName, employee.kaUnitId]);
-    const mentorName = useMemo(() => getName(employee.mentorId), [getName, employee.mentorId]);
-    const managerName = useMemo(() => getName(employee.managerId), [getName, employee.managerId]);
-    const supervisorName = useMemo(() => getName(employee.supervisorId), [getName, employee.supervisorId]);
-    const dirutName = useMemo(() => getName(employee.dirutId), [getName, employee.dirutId]);
+    const kaUnitName = useMemo(() => getName(employee.kaUnitId) || employee.kaUnitName, [getName, employee.kaUnitId, employee.kaUnitName]);
+    const mentorName = useMemo(() => getName(employee.mentorId) || employee.mentorName, [getName, employee.mentorId, employee.mentorName]);
+    const managerName = useMemo(() => getName(employee.managerId) || employee.managerName, [getName, employee.managerId, employee.managerName]);
+    const supervisorName = useMemo(() => getName(employee.supervisorId) || employee.supervisorName, [getName, employee.supervisorId, employee.supervisorName]);
+    const dirutName = useMemo(() => getName(employee.dirutId) || employee.dirutName, [getName, employee.dirutId, employee.dirutName]);
+
+    // 🔥 FIX: Parse snapshot once, and fallback to null if empty so we use live data
+    const reportDataSnapshot = useMemo(() => {
+        if (!reportContent) return null;
+        try {
+            const data = typeof reportContent === 'string' ? JSON.parse(reportContent) : reportContent;
+            return (data && Object.keys(data).length > 0) ? data : null;
+        } catch (e) {
+            return null;
+        }
+    }, [reportContent]);
 
     return (
         <div className="space-y-6">
@@ -773,10 +784,8 @@ export const CeklisMutabaahView: React.FC<{
                                             <td className="p-2 border border-black font-medium text-black">{activity.title}</td>
                                             {Array.from({ length: daysInMonth }, (_, i) => {
                                                 const dayKey = (i + 1).toString().padStart(2, '0');
-                                                // Prioritize reportContent (snapshot) over live employee data
-                                                const resolvedProgress = reportContent
-                                                    ? (typeof reportContent === 'string' ? JSON.parse(reportContent) : reportContent)
-                                                    : employee.monthlyActivities?.[monthKey];
+                                                // Prioritize reportContent (snapshot) if valid, otherwise use live data
+                                                const resolvedProgress = reportDataSnapshot || employee.monthlyActivities?.[monthKey];
 
                                                 const progress = resolvedProgress?.[dayKey];
                                                 const val = (progress as Record<string, boolean | string> | undefined)?.[activity.id];
@@ -806,14 +815,13 @@ export const CeklisMutabaahView: React.FC<{
                 <div className="mt-8 pt-4">
                     <div className="grid grid-cols-3 gap-6 text-black max-w-4xl mx-auto">
 
-                        {/* Ka. Unit - KIRI */}
                         <div className="flex flex-col items-center text-center">
-                            <p className="text-xs font-bold uppercase mb-4 h-4">Ka. Unit</p>
+                            <p className="text-xs font-bold uppercase mb-4 h-4">ATASAN LANGSUNG</p>
                             <div className="h-20 w-full flex items-end justify-center mb-1">
                                 {(employee.kaUnitId && allUsersData[employee.kaUnitId]?.employee?.signature) ? (
                                     <NextImage
                                         src={allUsersData[employee.kaUnitId].employee.signature!}
-                                        alt="TTD Ka. Unit"
+                                        alt="TTD Atasan Langsung"
                                         width={100}
                                         height={64}
                                         className="h-16 w-auto object-contain"
@@ -821,7 +829,7 @@ export const CeklisMutabaahView: React.FC<{
                                     />
                                 ) : (
                                     <div className="h-16 w-full flex items-center justify-center text-gray-400 text-xs">
-                                        {employee.kaUnitId ? 'Belum ditandatangani' : 'Tidak ada Ka. Unit'}
+                                        {employee.kaUnitId ? 'Belum ditandatangani' : 'Tidak ada Atasan Langsung'}
                                     </div>
                                 )}
                             </div>

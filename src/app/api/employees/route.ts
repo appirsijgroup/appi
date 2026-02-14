@@ -14,6 +14,7 @@ const QueryParamsSchema = z.object({
     email: z.string().optional(),
     // Allow limit up to 10000
     limit: z.string().transform(v => Math.min(parseInt(v) || 10000, 10000)).optional(),
+    includeInactive: z.string().transform(v => v === 'true').optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
 
         const url = new URL(request.url);
         // Increase default limit to 10000 to accommodate large organizations (RSIJ GROUP)
-        const { id, email, limit = 10000 } = QueryParamsSchema.parse(Object.fromEntries(url.searchParams));
+        const { id, email, limit = 10000, includeInactive } = QueryParamsSchema.parse(Object.fromEntries(url.searchParams));
 
         const isUserAdmin = await isAdmin();
 
@@ -43,6 +44,11 @@ export async function GET(request: NextRequest) {
         // Construct Raw SQL with filters and subqueries for activations/records/histories
         let queryStr = `
             SELECT e.*, 
+                   m.name as mentor_name,
+                   k.name as ka_unit_name,
+                   s.name as supervisor_name,
+                   man.name as manager_name,
+                   d.name as dirut_name,
             (SELECT json_agg(month_key) FROM mutabaah_activations WHERE employee_id = e.id) as activated_months_raw,
             (SELECT json_object_agg(month_key, report_data) FROM employee_monthly_records WHERE employee_id = e.id) as monthly_activities_raw,
             (SELECT json_agg(json_build_object(
@@ -60,11 +66,21 @@ export async function GET(request: NextRequest) {
                 'date', rq.date
             )) FROM employee_quran_reading_history rq WHERE rq.employee_id = e.id) as quran_history_raw
             FROM employees e
+            LEFT JOIN employees m ON e.mentor_id = m.id
+            LEFT JOIN employees k ON e.ka_unit_id = k.id
+            LEFT JOIN employees s ON e.supervisor_id = s.id
+            LEFT JOIN employees man ON e.manager_id = man.id
+            LEFT JOIN employees d ON e.dirut_id = d.id
         `;
 
         const conditions: string[] = [];
         if (id) conditions.push(`e.id = '${id.replace(/'/g, "''")}'`);
         if (email) conditions.push(`e.email = '${email.replace(/'/g, "''")}'`);
+
+        // 🔥 Filter inactive employees by default
+        if (!includeInactive && !id && !email) {
+            conditions.push(`(e.is_active IS TRUE OR e.is_active IS NULL)`);
+        }
 
         if (conditions.length > 0) {
             queryStr += ' WHERE ' + conditions.join(' AND ');

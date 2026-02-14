@@ -258,43 +258,50 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
 
 
 
+
     const submissionsForRole = useMemo(() => {
         const id = loggedInEmployee.id;
         const isAdmin = loggedInEmployee.role === 'admin' || loggedInEmployee.role === 'super-admin';
+        const isSuper = loggedInEmployee.role === 'super-admin' || loggedInEmployee.canBeBPH || (loggedInEmployee.functional_roles || loggedInEmployee.functionalRoles)?.includes('BPH');
 
         return monthlyReportSubmissions.filter(s => {
-            // 1. Snapshot match (Fast & Independent)
-            if (s.mentorId === id || s.kaUnitId === id) return true;
-
-            // 2. My own report (ALLOW Viewing to track status)
+            // 1. My own report (ALLOW Viewing to track status)
             if (s.menteeId === id) return true;
 
-            // 3. Current Mentoring match (Depends on allUsersData)
-            const mentee = allUsersData[s.menteeId]?.employee;
-            if (mentee) {
-                if (loggedInEmployee.canBeMentor && mentee.mentorId === id) return true;
-                if (loggedInEmployee.canBeKaUnit && mentee.kaUnitId === id) return true;
-                if (loggedInEmployee.canBeManager && mentee.managerId === id) return true;
-                if (loggedInEmployee.canBeSupervisor && mentee.supervisorId === id) return true;
-                if (loggedInEmployee.canBeDirut && mentee.dirutId === id) return true;
-            } else {
-                // 🔥 FALLBACK: To be safe
-                return true;
-            }
+            // 2. Admin Catch-all (Super Admin/BPH sees everything)
+            if (isSuper) return true;
 
-            // 4. Admin Catch-all
-            if (isAdmin) {
-                // Super Admin/BPH sees everything
-                const isSuper = loggedInEmployee.role === 'super-admin' || loggedInEmployee.canBeBPH || (loggedInEmployee.functional_roles || loggedInEmployee.functionalRoles)?.includes('BPH');
-                if (isSuper) return true;
-
-                // Regular Admin shows only managed hospitals
+            // 3. Regular Admin shows only managed hospitals
+            if (isAdmin && !isSuper) {
                 const managedIds = loggedInEmployee.managedHospitalIds || [];
                 const mentee = allUsersData[s.menteeId]?.employee;
                 const hId = mentee?.hospitalId || mentee?.hospital_id;
-                if (hId && managedIds.includes(hId)) return true;
+                return hId && managedIds.includes(hId);
+            }
 
-                return false;
+            // 4. Role-based filtering: ONLY show if it's MY turn to review
+            const mentee = allUsersData[s.menteeId]?.employee;
+
+            // Check if I'm the Mentor and report is pending_mentor
+            if (s.status === 'pending_mentor') {
+                // Show if I'm assigned as mentor in snapshot OR current mentor
+                if (s.mentorId === id) return true;
+                if (loggedInEmployee.canBeMentor && mentee?.mentorId === id) return true;
+            }
+
+            // Check if I'm the Atasan Langsung and report is pending_kaunit
+            if (s.status === 'pending_kaunit') {
+                // Show if I'm assigned as Atasan Langsung in snapshot OR current Atasan Langsung
+                if (s.kaUnitId === id) return true;
+                if (loggedInEmployee.canBeKaUnit && mentee?.kaUnitId === id) return true;
+            }
+
+            // Show approved/rejected reports if I was involved in the approval chain
+            if (s.status === 'approved' || s.status.startsWith('rejected_')) {
+                // Show if I was the mentor or Atasan Langsung for this report
+                if (s.mentorId === id || s.kaUnitId === id) return true;
+                // Or if I'm currently their mentor or Atasan Langsung
+                if (mentee && (mentee.mentorId === id || mentee.kaUnitId === id)) return true;
             }
 
             return false;
@@ -359,7 +366,7 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
         const reports = submissionsForRole.map(s => {
             const mentee = allUsersData[s.menteeId]?.employee;
             const isPending = s.status.startsWith('pending_');
-            const canReviewReport = isPending && (
+            const canReviewReport = isPending && s.menteeId !== myId && (
                 (s.status === 'pending_mentor' && (s.mentorId === myId || mentee?.mentorId === myId)) ||
                 (s.status === 'pending_kaunit' && (s.kaUnitId === myId || mentee?.kaUnitId === myId)) ||
                 (loggedInEmployee.role === 'super-admin' || loggedInEmployee.canBeBPH || (loggedInEmployee.functional_roles || loggedInEmployee.functionalRoles)?.includes('BPH')) ||
@@ -415,24 +422,47 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
         const tadarus = (pendingTadarusRequests || [])
             .filter((r: TadarusRequest) => {
                 const mentee = allUsersData[r.menteeId]?.employee;
-                const isOriginalMentor = r.mentorId === myId;
-                const isCurrentMentor = mentee?.mentorId === myId;
                 const isMyRequest = r.menteeId === myId;
                 const isSuper = loggedInEmployee.role === 'super-admin' || loggedInEmployee.canBeBPH || (loggedInEmployee.functional_roles || loggedInEmployee.functionalRoles)?.includes('BPH');
                 const isAdmin = loggedInEmployee.role === 'admin';
 
-                if (isOriginalMentor || isCurrentMentor || isMyRequest || isSuper) return true;
+                // Category-based Routing Logic
+                const categoryUpper = r.category?.toUpperCase() || '';
+                const isAtasanReview = categoryUpper === 'KIE' || categoryUpper === 'DOA BERSAMA' || categoryUpper === 'DOA BERSAMA';
 
-                if (loggedInEmployee.canBeKaUnit && mentee?.kaUnitId === myId) return true;
-                if (loggedInEmployee.canBeManager && mentee?.managerId === myId) return true;
-                if (loggedInEmployee.canBeSupervisor && mentee?.supervisorId === myId) return true;
-                if (loggedInEmployee.canBeDirut && mentee?.dirutId === myId) return true;
+                // If I am the ASSIGNED reviewer (r.mentorId matches myId), I should see it regardless of logic (fallback)
+                // This handles cases where I was explicitly assigned
+                if (r.mentorId === myId) return true;
 
+                // If I am Super Admin, I see everything
+                if (isSuper) return true;
+
+                // If I am Admin, I see if I manage the hospital
                 if (isAdmin) {
                     const managedIds = loggedInEmployee.managedHospitalIds || [];
                     const hId = mentee?.hospitalId || mentee?.hospital_id;
                     return hId && managedIds.includes(hId);
                 }
+
+                // Logic for Role-based visibility
+                if (isAtasanReview) {
+                    // MUST be Atasan to see KIE/DOA
+                    // MUST be Atasan to see KIE/DOA
+                    // Check if I am their Atasan (KaUnit/Supervisor/Manager) - Checking ID directly handles delegation
+                    const iAmKaUnit = mentee?.kaUnitId === myId;
+                    const iAmSpv = mentee?.supervisorId === myId;
+                    const iAmManager = mentee?.managerId === myId;
+
+                    if (iAmKaUnit || iAmSpv || iAmManager) return true;
+                } else {
+                    // Start of Standard Activities (Mentor only)
+                    // Check if I am their Mentor
+                    const iAmMentor = loggedInEmployee.canBeMentor && mentee?.mentorId === myId;
+                    if (iAmMentor) return true;
+                }
+
+                // If I submitted it, I see it (My Request)
+                if (isMyRequest) return true;
 
                 return false;
             })
@@ -449,12 +479,8 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
                     monthKey: r.date.substring(0, 7),
                     status: r.status,
                     notes: r.notes || '-',
-                    canReview: r.status === 'pending' && (
-                        allUsersData[r.menteeId]?.employee?.mentorId === myId ||
-                        (loggedInEmployee.canBeKaUnit && allUsersData[r.menteeId]?.employee?.kaUnitId === myId) ||
-                        (loggedInEmployee.canBeManager && allUsersData[r.menteeId]?.employee?.managerId === myId) ||
-                        (loggedInEmployee.canBeSupervisor && allUsersData[r.menteeId]?.employee?.supervisorId === myId) ||
-                        (loggedInEmployee.canBeDirut && allUsersData[r.menteeId]?.employee?.dirutId === myId) ||
+                    canReview: r.status === 'pending' && r.menteeId !== myId && (
+                        r.mentorId === myId ||
                         (loggedInEmployee.role === 'super-admin' || loggedInEmployee.canBeBPH || (loggedInEmployee.functional_roles || loggedInEmployee.functionalRoles)?.includes('BPH')) ||
                         (loggedInEmployee.role === 'admin' && (loggedInEmployee.managedHospitalIds || []).includes(allUsersData[r.menteeId]?.employee?.hospitalId || allUsersData[r.menteeId]?.employee?.hospital_id || ''))
                     ),
@@ -475,9 +501,6 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
                 if (isOriginalMentor || isCurrentMentor || isMyRequest || isSuper) return true;
 
                 if (loggedInEmployee.canBeKaUnit && mentee?.kaUnitId === myId) return true;
-                if (loggedInEmployee.canBeManager && mentee?.managerId === myId) return true;
-                if (loggedInEmployee.canBeSupervisor && mentee?.supervisorId === myId) return true;
-                if (loggedInEmployee.canBeDirut && mentee?.dirutId === myId) return true;
 
                 if (isAdmin) {
                     const managedIds = loggedInEmployee.managedHospitalIds || [];
@@ -500,12 +523,9 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
                     monthKey: r.date.substring(0, 7),
                     status: r.status,
                     notes: r.reason || r.mentorNotes || '-',
-                    canReview: r.status === 'pending' && (
+                    canReview: r.status === 'pending' && r.menteeId !== myId && (
                         allUsersData[r.menteeId]?.employee?.mentorId === myId ||
                         (loggedInEmployee.canBeKaUnit && allUsersData[r.menteeId]?.employee?.kaUnitId === myId) ||
-                        (loggedInEmployee.canBeManager && allUsersData[r.menteeId]?.employee?.managerId === myId) ||
-                        (loggedInEmployee.canBeSupervisor && allUsersData[r.menteeId]?.employee?.supervisorId === myId) ||
-                        (loggedInEmployee.canBeDirut && allUsersData[r.menteeId]?.employee?.dirutId === myId) ||
                         (loggedInEmployee.role === 'super-admin' || loggedInEmployee.canBeBPH || (loggedInEmployee.functional_roles || loggedInEmployee.functionalRoles)?.includes('BPH')) ||
                         (loggedInEmployee.role === 'admin' && (loggedInEmployee.managedHospitalIds || []).includes(allUsersData[r.menteeId]?.employee?.hospitalId || allUsersData[r.menteeId]?.employee?.hospital_id || ''))
                     ),
@@ -657,7 +677,7 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
                         const canOverrule = isSuper || (isAdmin && managesMentee);
 
                         // Strict check: Only show buttons if it is the current stage for the user (or admin override for the CURRENT stage)
-                        const canReview = isPending && (
+                        const canReview = isPending && s.menteeId !== myId && (
                             (s.status === 'pending_mentor' && (s.mentorId === myId || mentee?.mentorId === myId || canOverrule)) ||
                             (s.status === 'pending_kaunit' && (s.kaUnitId === myId || mentee?.kaUnitId === myId || canOverrule))
                         );
@@ -703,7 +723,7 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
                                             {s.status.replace(/_/g, ' ')}
                                         </span>
                                         <p className="mt-2 text-xs text-blue-200 opacity-70 italic text-center">
-                                            Laporan ini sedang dalam tahap {s.status.split('_').pop()} atau sudah selesai diproses.
+                                            Laporan ini sedang dalam tahap {s.status === 'pending_kaunit' ? 'Atasan Langsung' : s.status.split('_').pop()} atau sudah selesai diproses.
                                         </p>
                                     </div>
                                 </div>
@@ -784,12 +804,25 @@ const Persetujuan: React.FC<PersetujuanProps> = ({
                                             </td>
                                             <td className="px-4 py-4 text-center whitespace-nowrap">
                                                 {item.type === 'report' ? (
-                                                    <button onClick={() => setSelectedSubmissionId(item.id)} className="px-4 py-1.5 rounded-full font-bold text-xs bg-teal-500/10 hover:bg-teal-400 text-teal-400 hover:text-white border border-teal-500/30 transition-all active:scale-95 shadow-lg">
-                                                        Tinjau
-                                                    </button>
+                                                    item.canReview ? (
+                                                        <button onClick={() => setSelectedSubmissionId(item.id)} className="px-4 py-1.5 rounded-full font-bold text-xs bg-teal-500/10 hover:bg-teal-400 text-teal-400 hover:text-white border border-teal-500/30 transition-all active:scale-95 shadow-lg">
+                                                            Tinjau
+                                                        </button>
+                                                    ) : (
+                                                        <div className="flex justify-center">
+                                                            <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tight shadow-md border border-white/10 ${item.status === 'approved' ? 'bg-green-600 text-white' :
+                                                                item.status.startsWith('rejected') ? 'bg-red-600 text-white' :
+                                                                    'bg-blue-600 text-white'
+                                                                }`}>
+                                                                {item.status === 'approved' ? 'Disetujui' :
+                                                                    item.status.startsWith('rejected') ? 'Ditolak' :
+                                                                        'Menunggu'}
+                                                            </span>
+                                                        </div>
+                                                    )
                                                 ) : (
                                                     <div className="flex items-center justify-center gap-2">
-                                                        {item.status === 'pending' ? (
+                                                        {item.status === 'pending' && item.canReview ? (
                                                             <>
                                                                 <button
                                                                     onClick={() => setRejectionTarget({ type: item.type as 'tadarus' | 'prayer', id: item.id })}

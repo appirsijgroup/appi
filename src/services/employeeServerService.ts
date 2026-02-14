@@ -20,10 +20,15 @@ interface RawSqlEmployee {
     notification_enabled?: boolean;
     profile_picture?: string;
     ka_unit_id?: string;
+    ka_unit_name?: string;
     mentor_id?: string;
+    mentor_name?: string;
     supervisor_id?: string;
+    supervisor_name?: string;
     manager_id?: string;
+    manager_name?: string;
     dirut_id?: string;
+    dirut_name?: string;
     can_be_mentor?: boolean;
     can_be_supervisor?: boolean;
     can_be_manager?: boolean;
@@ -52,6 +57,11 @@ interface RawSqlEmployee {
     address?: string;
     birth_place?: string;
     birth_date?: string;
+    bph_id?: string;
+    bph_name?: string;
+    direksi_id?: string;
+    direksi_name?: string;
+    can_be_direksi?: boolean;
 }
 
 // Helper function to convert snake_case to camelCase for employee objects
@@ -68,16 +78,26 @@ export const convertToCamelCase = (emp: RawSqlEmployee): Employee => {
         profilePicture: emp.profile_picture || null,
         monthlyActivities: emp.monthly_activities || {},
         kaUnitId: emp.ka_unit_id || null,
+        kaUnitName: emp.ka_unit_name || null,
         supervisorId: emp.supervisor_id || null,
+        supervisorName: emp.supervisor_name || null,
         mentorId: emp.mentor_id || null,
+        mentorName: emp.mentor_name || null,
         dirutId: emp.dirut_id || null,
+        dirutName: emp.dirut_name || null,
+        managerId: emp.manager_id || null,
+        managerName: emp.manager_name || null,
         canBeMentor: emp.can_be_mentor ?? false,
         canBeSupervisor: emp.can_be_supervisor ?? false,
         canBeKaUnit: emp.can_be_ka_unit ?? false,
         canBeDirut: emp.can_be_dirut ?? false,
         canBeBPH: emp.can_be_bph ?? false,
+        canBeDireksi: emp.can_be_direksi ?? false,
         canBeManager: emp.can_be_manager ?? false,
-        managerId: emp.manager_id || null,
+        bphId: emp.bph_id || null,
+        bphName: emp.bph_name || null,
+        direksiId: emp.direksi_id || null,
+        direksiName: emp.direksi_name || null,
         functionalRoles: emp.functional_roles || [],
         managerScope: typeof emp.manager_scope === 'string' ? JSON.parse(emp.manager_scope) : emp.manager_scope,
         locationId: emp.location_id,
@@ -113,7 +133,23 @@ export async function getFullEmployeeData(userId: string) {
     try {
         // 1. Fetch basic employee data
         const { rows: employeeRows } = await query(
-            'SELECT * FROM employees WHERE id = $1',
+            `SELECT e.*, 
+                    m.name as mentor_name, 
+                    k.name as ka_unit_name, 
+                    s.name as supervisor_name,
+                    man.name as manager_name,
+                    d.name as dirut_name,
+                    b.name as bph_name,
+                    dir.name as direksi_name
+             FROM employees e
+             LEFT JOIN employees m ON e.mentor_id = m.id
+             LEFT JOIN employees k ON e.ka_unit_id = k.id
+             LEFT JOIN employees s ON e.supervisor_id = s.id
+             LEFT JOIN employees man ON e.manager_id = man.id
+             LEFT JOIN employees d ON e.dirut_id = d.id
+             LEFT JOIN employees b ON e.bph_id = b.id
+             LEFT JOIN employees dir ON e.direksi_id = dir.id
+             WHERE e.id = $1`,
             [userId]
         );
         const employee = employeeRows[0];
@@ -209,7 +245,23 @@ export async function getFullEmployeeData(userId: string) {
 export async function getEssentialEmployeeData(userId: string) {
     try {
         const { rows: employeeRows } = await query(
-            'SELECT * FROM employees WHERE id = $1',
+            `SELECT e.*, 
+                    m.name as mentor_name, 
+                    k.name as ka_unit_name, 
+                    s.name as supervisor_name,
+                    man.name as manager_name,
+                    d.name as dirut_name,
+                    b.name as bph_name,
+                    dir.name as direksi_name
+             FROM employees e
+             LEFT JOIN employees m ON e.mentor_id = m.id
+             LEFT JOIN employees k ON e.ka_unit_id = k.id
+             LEFT JOIN employees s ON e.supervisor_id = s.id
+             LEFT JOIN employees man ON e.manager_id = man.id
+             LEFT JOIN employees d ON e.dirut_id = d.id
+             LEFT JOIN employees b ON e.bph_id = b.id
+             LEFT JOIN employees dir ON e.direksi_id = dir.id
+             WHERE e.id = $1`,
             [userId]
         );
         const employee = employeeRows[0];

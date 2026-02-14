@@ -50,9 +50,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Is Active
-    if (isActive !== null && isActive !== undefined && isActive !== '') {
+    if (isActive === 'true') {
       conditions.push(`is_active = $${params.length + 1}`);
-      params.push(isActive === 'true');
+      params.push(true);
+    } else if (isActive === 'false') {
+      conditions.push(`is_active = $${params.length + 1}`);
+      params.push(false);
+    } else if (isActive === 'all') {
+      // Show all (do nothing)
+    } else {
+      // 🔥 DEFAULT: Hide inactive employees
+      conditions.push(`(is_active IS TRUE OR is_active IS NULL)`);
     }
 
     // 🔥 ENFORCE HOSPITAL SCOPING

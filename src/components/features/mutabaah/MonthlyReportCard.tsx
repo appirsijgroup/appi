@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { CheckCircleIcon } from '@/components/ui/Icons';
+import { Trophy, PartyPopper, Sparkles, CheckCircle2 } from 'lucide-react';
 import { DailyActivity } from '@/types';
 import { getTodayLocalDateString } from '@/utils/dateUtils';
 import { useUIStore, useAppDataStore } from '@/store/store';
@@ -15,6 +15,13 @@ interface MonthlyReportCardProps {
     employeeId: string;
     monthKey: string; // Format: "2026-01"
 }
+
+const motivationalMessages = [
+    "Target bulan ini telah tercapai. Pertahankan konsistensi Anda dalam melaksanakan aktivitas ini.",
+    "Anda telah memenuhi target laporan bulan ini. Kontribusi ini merupakan pencapaian yang baik.",
+    "Target telah terpenuhi. Kedisiplinan Anda dalam pelaporan rutin sangat dihargai.",
+    "Aktivitas bulan ini telah tuntas. Terus pertahankan performa kerja Anda."
+];
 
 const MonthlyReportCard: React.FC<MonthlyReportCardProps> = ({
     activity,
@@ -111,6 +118,11 @@ const MonthlyReportCard: React.FC<MonthlyReportCardProps> = ({
         addToast('⚠️ Fitur pengurangan laporan belum tersedia. Silakan hubungi admin.', 'error');
     };
 
+    const randomMessage = useMemo(() => {
+        const seed = employeeId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        return motivationalMessages[seed % motivationalMessages.length];
+    }, [employeeId]);
+
     return (
         <div className="border border-white/10 p-4 rounded-lg bg-linear-to-br from-gray-800/50 to-gray-900/50">
             {/* Header */}
@@ -124,7 +136,7 @@ const MonthlyReportCard: React.FC<MonthlyReportCardProps> = ({
                 {/* Status Badge */}
                 {isTargetMet ? (
                     <div className="flex items-center gap-1 px-3 py-1 bg-green-500/20 border border-green-500/50 rounded-full">
-                        <CheckCircleIcon className="w-4 h-4 text-green-400" />
+                        <CheckCircle2 className="w-4 h-4 text-green-400" />
                         <span className="text-xs font-semibold text-green-400">
                             Tercapai!
                         </span>
@@ -140,52 +152,84 @@ const MonthlyReportCard: React.FC<MonthlyReportCardProps> = ({
 
             {/* Progress Bar */}
             <div className="mb-4">
-                <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
+                <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden shadow-inner">
                     <div
-                        className={`h-full transition-all duration-500 ease-out ${isTargetMet
-                            ? 'bg-linear-to-r from-green-500 to-green-400'
+                        className={`h-full transition-all duration-1000 ease-out ${isTargetMet
+                            ? 'bg-linear-to-r from-green-500 to-emerald-500'
                             : 'bg-linear-to-r from-teal-500 to-blue-500'
                             }`}
                         style={{ width: `${progress}%` }}
                     />
                 </div>
-                <p className="text-xs text-gray-400 mt-1 text-right">
-                    {progress.toFixed(0)}% tercapai
-                </p>
-            </div>
-
-            {/* Date Input and Submit Form */}
-            <div className="space-y-3">
-                {/* Date Picker */}
-                <div>
-                    <label className="block text-xs text-gray-400 mb-1">
-                        Tanggal Pelaporan:
-                    </label>
-                    <input
-                        type="date"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        max={getTodayLocalDateString()}
-                        className={`w-full bg-white/5 border rounded-lg p-2 text-sm text-white focus:ring-2 focus:ring-teal-400 focus:outline-none ${isDateAlreadyReported
-                            ? 'border-yellow-500/50 bg-yellow-500/10'
-                            : 'border-white/20'
-                            }`}
-                        disabled={isLoading}
-                    />
+                <div className="flex justify-between items-center mt-1.5">
+                    <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Progres</span>
+                    <p className="text-xs text-gray-400 font-mono">
+                        {progress.toFixed(0)}% tercapai
+                    </p>
                 </div>
-
-                {/* Submit Button */}
-                <button
-                    onClick={handleSubmit}
-                    disabled={isLoading || isDateAlreadyReported}
-                    className={`w-full py-2 px-4 rounded-lg font-semibold transition-all ${isLoading || isDateAlreadyReported
-                        ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed border-gray-600/30'
-                        : 'bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 border border-teal-500/50'
-                        }`}
-                >
-                    {isLoading ? 'Menyimpan...' : isDateAlreadyReported ? 'Sudah Dilaporkan' : 'Lapor Aktivitas'}
-                </button>
             </div>
+
+            {/* Achievement State or Input form */}
+            {isTargetMet ? (
+                <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-5 text-center relative overflow-hidden">
+                    <div className="flex justify-center mb-3">
+                        <div className="p-2.5 bg-green-500/10 rounded-full">
+                            <CheckCircle2 className="w-5 h-5 text-green-400" />
+                        </div>
+                    </div>
+                    <h5 className="text-sm font-bold text-green-400 mb-2">Target Tercapai</h5>
+                    <p className="text-xs text-blue-100/70 leading-relaxed px-4">
+                        {randomMessage}
+                    </p>
+                    <div className="mt-4 pt-3 border-t border-white/5">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-green-500/60">Laporan Dikunci</span>
+                    </div>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {/* Date Picker */}
+                    <div>
+                        <label className="block text-xs text-gray-400 mb-1">
+                            Tanggal Pelaporan:
+                        </label>
+                        <input
+                            type="date"
+                            value={selectedDate}
+                            onChange={(e) => setSelectedDate(e.target.value)}
+                            max={getTodayLocalDateString()}
+                            className={`w-full bg-white/5 border rounded-lg p-2 text-sm text-white focus:ring-2 focus:ring-teal-400 focus:outline-none transition-all ${isDateAlreadyReported
+                                ? 'border-yellow-500/50 bg-yellow-500/10'
+                                : 'border-white/20 focus:bg-white/10'
+                                }`}
+                            disabled={isLoading}
+                        />
+                    </div>
+
+                    {/* Submit Button */}
+                    <button
+                        onClick={handleSubmit}
+                        disabled={isLoading || isDateAlreadyReported}
+                        className={`w-full py-2.5 px-4 rounded-xl font-bold tracking-tight transition-all shadow-lg ${isLoading || isDateAlreadyReported
+                            ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed border-gray-600/30'
+                            : 'bg-linear-to-r from-teal-500/20 to-blue-500/20 hover:from-teal-500/30 hover:to-blue-500/30 text-teal-400 border border-teal-500/50 active:scale-95 shadow-teal-500/5'
+                            }`}
+                    >
+                        {isLoading ? (
+                            <div className="flex items-center justify-center gap-2">
+                                <div className="w-4 h-4 border-2 border-teal-400/30 border-t-teal-400 rounded-full animate-spin" />
+                                <span>Menyimpan...</span>
+                            </div>
+                        ) : isDateAlreadyReported ? (
+                            <div className="flex items-center justify-center gap-2">
+                                <CheckCircle2 className="w-4 h-4 text-yellow-500" />
+                                <span>Sudah Dilaporkan</span>
+                            </div>
+                        ) : (
+                            'Lapor Aktivitas'
+                        )}
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

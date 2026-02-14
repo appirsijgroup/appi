@@ -2,13 +2,14 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { type Employee, ReadingHistory, QuranReadingHistory, MonthlyReportSubmission, DailyActivity, TadarusRequest, MissedPrayerRequest } from '@/types';
-import { CalendarDays, Clock, Check, Trash2, CheckSquare, Pencil, Lock, PlusCircle, List, Eye, RotateCcw, CheckCircle2, Info } from 'lucide-react';
+import { CalendarDays, Clock, Check, Trash2, CheckSquare, Pencil, Lock, PlusCircle, List, Eye, RotateCcw, CheckCircle2, Info, Trophy, PartyPopper, Sparkles } from 'lucide-react';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import MonthlyReportCard from '@/components/features/mutabaah/MonthlyReportCard';
 import { createPortal } from 'react-dom';
 import { getTodayLocalDateString, createLocalDate, normalizeDate, formatDateTimeIndonesia, formatDateIndonesia } from '@/utils/dateUtils';
 import type { QuranReadingSubmission } from '@/services/quranSubmissionService';
-import { useUIStore } from '@/store/store';
+import { useUIStore, useAppDataStore } from '@/store/store';
+import { isSuperAdmin, isAnyAdmin } from '@/lib/rolePermissions';
 
 // Helper function to calculate balanced weeks
 const getBalancedWeeks = (date: Date): { weekIndex: number, days: number[] }[] => {
@@ -137,7 +138,18 @@ const ReadingActivityCard: React.FC<{
         return dates;
     }, [employee.readingHistory, employee.quranReadingHistory]);
 
-    const isDateAlreadyReported = reportedDates.includes(dateCompleted);
+    const isDateAlreadyReported = useMemo(() => {
+        // 1. Check from explicit history items
+        if (reportedDates.includes(dateCompleted)) return true;
+
+        // 2. Check from monthly activities checklist (source of truth)
+        if (!dateCompleted) return false;
+        const monthKey = dateCompleted.slice(0, 7);
+        const dayKey = dateCompleted.slice(8, 10);
+        const activityId = readingActivity?.id || 'baca_alquran_buku';
+
+        return employee.monthlyActivities?.[monthKey]?.[dayKey]?.[activityId] ?? false;
+    }, [reportedDates, dateCompleted, employee.monthlyActivities, readingActivity?.id]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -165,6 +177,19 @@ const ReadingActivityCard: React.FC<{
             setIsLoading(false);
         }
     };
+
+    const motivationalMessages = [
+        "Target bulan ini telah tercapai. Pertahankan konsistensi Anda dalam berliterasi.",
+        "Anda telah memenuhi target bacaan bulan ini. Kontribusi ini merupakan kemajuan yang baik.",
+        "Target telah terpenuhi. Kedisiplinan Anda dalam menyelesaikan program ini sangat dihargai.",
+        "Program membaca bulan ini telah tuntas. Terus tingkatkan kompetensi Anda."
+    ];
+
+    const randomMessage = useMemo(() => {
+        // Use employee ID as seed for consistent message per user
+        const seed = employee.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        return motivationalMessages[seed % motivationalMessages.length];
+    }, [employee.id]);
 
     return (
         <div className="border border-white/10 p-4 rounded-lg bg-linear-to-br from-gray-800/50 to-gray-900/50">
@@ -195,82 +220,114 @@ const ReadingActivityCard: React.FC<{
 
             {/* Progress Bar */}
             <div className="mb-4">
-                <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
+                <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden shadow-inner">
                     <div
-                        className={`h-full transition-all duration-500 ease-out ${isTargetMet
-                            ? 'bg-linear-to-r from-green-500 to-green-400'
+                        className={`h-full transition-all duration-1000 ease-out ${isTargetMet
+                            ? 'bg-linear-to-r from-green-500 to-emerald-500'
                             : 'bg-linear-to-r from-teal-500 to-blue-500'
                             }`}
                         style={{ width: `${progress}%` }}
                     />
                 </div>
-                <p className="text-xs text-gray-400 mt-1 text-right">
-                    {progress.toFixed(0)}% tercapai
-                </p>
+                <div className="flex justify-between items-center mt-1.5">
+                    <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Progres</span>
+                    <p className="text-xs text-gray-400 font-mono">
+                        {progress.toFixed(0)}% tercapai
+                    </p>
+                </div>
             </div>
 
-            {/* Date Input and Submit Form */}
-            <div className="space-y-3">
-                {/* Book Title Input */}
-                <div>
-                    <label className="block text-xs text-gray-400 mb-1">
-                        Judul Buku:
-                    </label>
-                    <input
-                        type="text"
-                        value={bookTitle}
-                        onChange={(e) => setBookTitle(e.target.value)}
-                        placeholder="Contoh: Fiqih Ibadah"
-                        className="w-full bg-white/5 border border-white/20 rounded-lg p-2 text-sm text-white focus:ring-2 focus:ring-teal-400 focus:outline-none"
-                        disabled={isLoading}
-                    />
+            {/* Achievement State or Input form */}
+            {isTargetMet ? (
+                <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-5 text-center relative overflow-hidden">
+                    <div className="flex justify-center mb-3">
+                        <div className="p-2.5 bg-green-500/10 rounded-full">
+                            <CheckCircle2 className="w-5 h-5 text-green-400" />
+                        </div>
+                    </div>
+                    <h5 className="text-sm font-bold text-green-400 mb-2">Target Tercapai</h5>
+                    <p className="text-xs text-blue-100/70 leading-relaxed px-4">
+                        {randomMessage}
+                    </p>
+                    <div className="mt-4 pt-3 border-t border-white/5">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-green-500/60">Laporan Dikunci</span>
+                    </div>
                 </div>
+            ) : (
+                <div className="space-y-3">
+                    {/* Book Title Input */}
+                    <div>
+                        <label className="block text-xs text-gray-400 mb-1">
+                            Judul Buku:
+                        </label>
+                        <input
+                            type="text"
+                            value={bookTitle}
+                            onChange={(e) => setBookTitle(e.target.value)}
+                            placeholder="Contoh: Fiqih Ibadah"
+                            className="w-full bg-white/5 border border-white/20 rounded-lg p-2 text-sm text-white focus:ring-2 focus:ring-teal-400 focus:outline-none transition-all focus:bg-white/10"
+                            disabled={isLoading}
+                        />
+                    </div>
 
-                {/* Pages Read Input */}
-                <div>
-                    <label className="block text-xs text-gray-400 mb-1">
-                        Halaman Dibaca:
-                    </label>
-                    <input
-                        type="text"
-                        value={pagesRead}
-                        onChange={(e) => setPagesRead(e.target.value)}
-                        placeholder="Contoh: 1-15, 20"
-                        className="w-full bg-white/5 border border-white/20 rounded-lg p-2 text-sm text-white focus:ring-2 focus:ring-teal-400 focus:outline-none"
-                        disabled={isLoading}
-                    />
-                </div>
+                    {/* Pages Read Input */}
+                    <div>
+                        <label className="block text-xs text-gray-400 mb-1">
+                            Halaman Dibaca:
+                        </label>
+                        <input
+                            type="text"
+                            value={pagesRead}
+                            onChange={(e) => setPagesRead(e.target.value)}
+                            placeholder="Contoh: 1-15, 20"
+                            className="w-full bg-white/5 border border-white/20 rounded-lg p-2 text-sm text-white focus:ring-2 focus:ring-teal-400 focus:outline-none transition-all focus:bg-white/10"
+                            disabled={isLoading}
+                        />
+                    </div>
 
-                {/* Date Picker */}
-                <div>
-                    <label className="block text-xs text-gray-400 mb-1">
-                        Tanggal Pelaporan:
-                    </label>
-                    <input
-                        type="date"
-                        value={dateCompleted}
-                        onChange={(e) => setDateCompleted(e.target.value)}
-                        max={getTodayLocalDateString()}
-                        className={`w-full bg-white/5 border rounded-lg p-2 text-sm text-white focus:ring-2 focus:ring-teal-400 focus:outline-none ${isDateAlreadyReported
-                            ? 'border-yellow-500/50 bg-yellow-500/10'
-                            : 'border-white/20'
+                    {/* Date Picker */}
+                    <div>
+                        <label className="block text-xs text-gray-400 mb-1">
+                            Tanggal Pelaporan:
+                        </label>
+                        <input
+                            type="date"
+                            value={dateCompleted}
+                            onChange={(e) => setDateCompleted(e.target.value)}
+                            max={getTodayLocalDateString()}
+                            className={`w-full bg-white/5 border rounded-lg p-2 text-sm text-white focus:ring-2 focus:ring-teal-400 focus:outline-none transition-all ${isDateAlreadyReported
+                                ? 'border-yellow-500/50 bg-yellow-500/10'
+                                : 'border-white/20 focus:bg-white/10'
+                                }`}
+                            disabled={isLoading}
+                        />
+                    </div>
+
+                    {/* Submit Button */}
+                    <button
+                        onClick={handleSubmit}
+                        disabled={isLoading || isDateAlreadyReported}
+                        className={`w-full py-2.5 px-4 rounded-xl font-bold tracking-tight transition-all shadow-lg ${isLoading || isDateAlreadyReported
+                            ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed border-gray-600/30'
+                            : 'bg-linear-to-r from-teal-500/20 to-blue-500/20 hover:from-teal-500/30 hover:to-blue-500/30 text-teal-400 border border-teal-500/50 active:scale-95 shadow-teal-500/5'
                             }`}
-                        disabled={isLoading}
-                    />
+                    >
+                        {isLoading ? (
+                            <div className="flex items-center justify-center gap-2">
+                                <div className="w-4 h-4 border-2 border-teal-400/30 border-t-teal-400 rounded-full animate-spin" />
+                                <span>Menyimpan...</span>
+                            </div>
+                        ) : isDateAlreadyReported ? (
+                            <div className="flex items-center justify-center gap-2">
+                                <CheckCircle2 className="w-4 h-4 text-yellow-500" />
+                                <span>Sudah Dilaporkan</span>
+                            </div>
+                        ) : (
+                            'Lapor Aktivitas'
+                        )}
+                    </button>
                 </div>
-
-                {/* Submit Button */}
-                <button
-                    onClick={handleSubmit}
-                    disabled={isLoading || isDateAlreadyReported}
-                    className={`w-full py-2 px-4 rounded-lg font-semibold transition-all ${isLoading || isDateAlreadyReported
-                        ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed border-gray-600/30'
-                        : 'bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 border border-teal-500/50'
-                        }`}
-                >
-                    {isLoading ? 'Menyimpan...' : isDateAlreadyReported ? 'Sudah Dilaporkan' : 'Lapor Aktivitas'}
-                </button>
-            </div>
+            )}
         </div>
     );
 };
@@ -377,7 +434,9 @@ const SimpleActivityCard: React.FC<{
 export const RiwayatBacaan: React.FC<{
     employee: Employee;
     onDeleteReadingHistory: (type: 'book' | 'quran', id: string, date: string) => void;
-}> = ({ employee, onDeleteReadingHistory }) => {
+    submissions?: MonthlyReportSubmission[];
+}> = ({ employee, onDeleteReadingHistory, submissions = [] }) => {
+    const { loggedInEmployee } = useAppDataStore();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [confirmDelete, setConfirmDelete] = useState<{ type: 'book' | 'quran'; id: string; date: string; detail: string } | null>(null);
 
@@ -512,13 +571,39 @@ export const RiwayatBacaan: React.FC<{
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap">{item.detail}</td>
                                 <td className="px-4 py-3 text-center">
-                                    <button
-                                        onClick={() => setConfirmDelete({ type: item.type.toLowerCase() as 'book' | 'quran', id: item.id, date: item.date, detail: item.detail })}
-                                        className="inline-flex items-center justify-center p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-red-500/20 hover:border-red-500/30 text-red-400 hover:text-red-300 transition-all shadow-sm hover:shadow-md"
-                                        title="Hapus"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
+                                    {(() => {
+                                        // 1. Get Viewer Permissions
+                                        const isSA = isSuperAdmin(loggedInEmployee);
+                                        const isAdm = isAnyAdmin(loggedInEmployee);
+                                        const isMentor = !!loggedInEmployee?.canBeMentor;
+
+                                        // 2. Check if the report for this item's month is approved
+                                        const monthKey = item.date.slice(0, 7);
+                                        const isApproved = submissions.some(s =>
+                                            s.monthKey === monthKey &&
+                                            s.menteeId === employee.id &&
+                                            s.status === 'approved'
+                                        );
+
+                                        // 3. Permission Logic:
+                                        // - User: Cannot delete at all
+                                        // - Super Admin: Can delete even if approved
+                                        // - Admin/Mentor: Can delete UNLESS approved
+                                        const canShowTrash = isSA || isAdm || isMentor;
+                                        const canActuallyDelete = isSA || (canShowTrash && !isApproved);
+
+                                        if (!canActuallyDelete) return null;
+
+                                        return (
+                                            <button
+                                                onClick={() => setConfirmDelete({ type: item.type.toLowerCase() as 'book' | 'quran', id: item.id, date: item.date, detail: item.detail })}
+                                                className="inline-flex items-center justify-center p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-red-500/20 hover:border-red-500/30 text-red-400 hover:text-red-300 transition-all shadow-sm hover:shadow-md"
+                                                title="Hapus"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        );
+                                    })()}
                                 </td>
                             </tr>
                         )) : (

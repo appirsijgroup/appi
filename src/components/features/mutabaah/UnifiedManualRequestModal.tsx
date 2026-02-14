@@ -5,7 +5,7 @@ import { type TadarusRequest, type MissedPrayerRequest } from '@/types';
 import { FileText, PlusCircle } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { PRAYERS } from '@/constants/prayers';
-import { useUIStore } from '@/store/store';
+import { useAppDataStore, useUIStore } from '@/store/store';
 
 import { getTodayLocalDateString, createLocalDate } from '@/utils/dateUtils';
 
@@ -23,6 +23,7 @@ export const UnifiedManualRequestModal: React.FC<UnifiedManualRequestModalProps>
     onMissedPrayerSubmit
 }) => {
     const { addToast } = useUIStore();
+    const { loggedInEmployee, allUsersData } = useAppDataStore();
     const [requestType, setRequestType] = useState<'tadarus' | 'prayer'>('tadarus');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -40,6 +41,51 @@ export const UnifiedManualRequestModal: React.FC<UnifiedManualRequestModalProps>
 
     // Max date is today
     const maxDate = getTodayLocalDateString();
+
+    // Determine who will receive the request
+    const reviewerInfo = useMemo(() => {
+        if (!loggedInEmployee) return null;
+
+        let name = '';
+
+        if (requestType === 'tadarus') {
+            const categoryUpper = String(category).toUpperCase();
+            const isAtasanReview = categoryUpper === 'KIE' || categoryUpper === 'DOA BERSAMA';
+
+            if (isAtasanReview) {
+                // Prioritas: KaUnit -> Supervisor -> Manager -> Mentor
+                if (loggedInEmployee.kaUnitId) name = loggedInEmployee.kaUnitName || '';
+                else if (loggedInEmployee.supervisorId) name = loggedInEmployee.supervisorName || '';
+                else if (loggedInEmployee.managerId) name = loggedInEmployee.managerName || '';
+                else name = loggedInEmployee.mentorName || '';
+            } else {
+                name = loggedInEmployee.mentorName || '';
+            }
+        } else {
+            name = loggedInEmployee.mentorName || '';
+        }
+
+        // Jika nama ada di session, kembalikan langsung (INSTANT)
+        if (name) return { name };
+
+        // Fallback: Cari di allUsersData jika nama di profil kosong tapi ID ada
+        const getReviewerId = () => {
+            if (requestType === 'tadarus') {
+                const categoryUpper = String(category).toUpperCase();
+                if (categoryUpper === 'KIE' || categoryUpper === 'DOA BERSAMA') {
+                    return loggedInEmployee.kaUnitId || loggedInEmployee.supervisorId || loggedInEmployee.managerId || loggedInEmployee.mentorId;
+                }
+            }
+            return loggedInEmployee.mentorId;
+        };
+
+        const rId = getReviewerId();
+        if (rId && allUsersData && allUsersData[rId]) {
+            return { name: allUsersData[rId].employee.name };
+        }
+
+        return null;
+    }, [loggedInEmployee, allUsersData, requestType, category]);
 
     if (!isOpen) return null;
 
@@ -92,7 +138,7 @@ export const UnifiedManualRequestModal: React.FC<UnifiedManualRequestModalProps>
     };
 
     return createPortal(
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-9999 animate-fade-in">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in">
             <div className="bg-gray-800 rounded-3xl shadow-2xl w-full max-w-md border border-white/10 animate-pop-in overflow-hidden">
                 <div className="h-1.5 bg-linear-to-r from-teal-400 to-indigo-500" />
 
@@ -162,6 +208,19 @@ export const UnifiedManualRequestModal: React.FC<UnifiedManualRequestModalProps>
                                         <option value="Umum" className="bg-gray-800 text-white">Kegiatan Umum Lainnya</option>
                                     </optgroup>
                                 </select>
+
+                                {/* Reviewer Info Box (Simplified) */}
+                                {reviewerInfo && (
+                                    <div className="mt-4 p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-3 group/rev transition-all animate-fade-in">
+                                        <div className="w-10 h-10 rounded-full bg-teal-500/10 border border-teal-500/20 flex items-center justify-center shrink-0">
+                                            <span className="text-teal-400 font-black text-xs">{reviewerInfo.name.charAt(0)}</span>
+                                        </div>
+                                        <div className="overflow-hidden">
+                                            <p className="text-[10px] text-teal-400 font-black uppercase tracking-widest leading-none mb-1">Pengajuan dikirim kepada:</p>
+                                            <p className="text-sm text-white font-bold truncate">{reviewerInfo.name}</p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -179,6 +238,19 @@ export const UnifiedManualRequestModal: React.FC<UnifiedManualRequestModalProps>
                                     <option value="" className="bg-gray-800 text-white">-- Pilih Sholat --</option>
                                     {wajibPrayers.map(p => <option key={p.id} value={p.id} className="bg-gray-800 text-white">{p.name}</option>)}
                                 </select>
+
+                                {/* Reviewer Info Box for Prayer (Simplified) */}
+                                {reviewerInfo && (
+                                    <div className="mt-4 p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-3 group/rev transition-all animate-fade-in">
+                                        <div className="w-10 h-10 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
+                                            <span className="text-indigo-400 font-black text-xs">{reviewerInfo.name.charAt(0)}</span>
+                                        </div>
+                                        <div className="overflow-hidden">
+                                            <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest leading-none mb-1">Pengajuan dikirim kepada:</p>
+                                            <p className="text-sm text-white font-bold truncate">{reviewerInfo.name}</p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 

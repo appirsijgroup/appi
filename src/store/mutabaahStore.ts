@@ -234,6 +234,12 @@ export const useMutabaahStore = create<MutabaahState>()(
                     } catch (e) { }
 
                     try {
+                        const { convertQuranSubmissionsToActivities } = await import('@/services/quranSubmissionService');
+                        const quranActivities = await convertQuranSubmissionsToActivities(loggedInEmployee.id);
+                        _deepMerge(updatedActivities, quranActivities);
+                    } catch (e) { }
+
+                    try {
                         const { getUserMonthlyReports } = await import('@/services/monthlySubmissionService');
                         const submissions = await getUserMonthlyReports(loggedInEmployee.id);
                         // Force update to array even if empty to clear deleted records

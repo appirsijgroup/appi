@@ -42,7 +42,7 @@ interface EmployeeState {
 
     setAllUsersData: (fn: (state: EmployeeState['allUsersData']) => EmployeeState['allUsersData']) => void;
     loadAllEmployees: (limit?: number) => Promise<void>;
-    loadPaginatedEmployees: (page?: number, limit?: number, search?: string, role?: string, isActive?: boolean, hospitalId?: string, isAppend?: boolean) => Promise<void>;
+    loadPaginatedEmployees: (page?: number, limit?: number, search?: string, role?: string, isActive?: boolean | 'all', hospitalId?: string, isAppend?: boolean) => Promise<void>;
     refreshActivityStats: () => void;
     loadDetailedEmployeeData: (employeeId: string, monthOrForce?: number | boolean, year?: number, force?: boolean) => Promise<void>;
     loadTeamProgressBulk: (month?: number, year?: number) => Promise<void>;
@@ -258,7 +258,7 @@ export const useEmployeeStore = create<EmployeeState>((set, get) => ({
         }
     },
 
-    loadPaginatedEmployees: async (page = 1, limit = 15, search = '', role = '', isActive, hospitalId = '', isAppend = false) => {
+    loadPaginatedEmployees: async (page = 1, limit = 15, search = '', role = '', isActive?: boolean | 'all', hospitalId = '', isAppend = false) => {
         if (get().isLoadingEmployees && !isAppend) return;
 
         try {

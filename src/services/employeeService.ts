@@ -24,10 +24,15 @@ export interface RawSqlEmployee {
     last_visit_date?: string;
     notification_enabled?: boolean;
     ka_unit_id?: string;
+    ka_unit_name?: string;
     mentor_id?: string;
+    mentor_name?: string;
     supervisor_id?: string;
+    supervisor_name?: string;
     manager_id?: string;
+    manager_name?: string;
     dirut_id?: string;
+    dirut_name?: string;
     can_be_mentor?: boolean;
     can_be_supervisor?: boolean;
     can_be_manager?: boolean;
@@ -49,6 +54,11 @@ export interface RawSqlEmployee {
     signature?: string | null;
     achievements?: any[];
     can_be_bph?: boolean;
+    can_be_direksi?: boolean;
+    bph_id?: string;
+    bph_name?: string;
+    direksi_id?: string;
+    direksi_name?: string;
 }
 
 /**
@@ -72,16 +82,26 @@ export const convertToCamelCase = (emp: RawSqlEmployee): Employee => {
         readingHistory: emp.reading_history_raw || [],
         quranReadingHistory: emp.quran_history_raw || [],
         kaUnitId: emp.ka_unit_id || null,
+        kaUnitName: emp.ka_unit_name || null,
         mentorId: emp.mentor_id || null,
+        mentorName: emp.mentor_name || null,
         supervisorId: emp.supervisor_id || null,
+        supervisorName: emp.supervisor_name || null,
         managerId: emp.manager_id || null,
+        managerName: emp.manager_name || null,
         dirutId: emp.dirut_id || null,
+        dirutName: emp.dirut_name || null,
         canBeMentor: emp.can_be_mentor ?? false,
         canBeSupervisor: emp.can_be_supervisor ?? false,
         canBeManager: emp.can_be_manager ?? false,
         canBeKaUnit: emp.can_be_ka_unit ?? false,
         canBeDirut: emp.can_be_dirut ?? false,
+        canBeDireksi: emp.can_be_direksi ?? false,
         canBeBPH: emp.can_be_bph ?? false,
+        bphId: emp.bph_id || null,
+        bphName: emp.bph_name || null,
+        direksiId: emp.direksi_id || null,
+        direksiName: emp.direksi_name || null,
         functionalRoles: (emp.functional_roles || []) as FunctionalRole[],
         locationId: emp.location_id || undefined,
         locationName: emp.location_name || undefined,
@@ -187,8 +207,11 @@ export const updateEmployee = async (
     if (u.canBeManager !== undefined) dbUpdates.can_be_manager = u.canBeManager;
     if (u.canBeKaUnit !== undefined) dbUpdates.can_be_ka_unit = u.canBeKaUnit;
     if (u.canBeDirut !== undefined) dbUpdates.can_be_dirut = u.canBeDirut;
+    if (u.canBeDireksi !== undefined) dbUpdates.can_be_direksi = u.canBeDireksi;
     if (u.functionalRoles !== undefined) dbUpdates.functional_roles = u.functionalRoles;
     if (u.canBeBPH !== undefined) dbUpdates.can_be_bph = u.canBeBPH;
+    if (u.bphId !== undefined) dbUpdates.bph_id = u.bphId;
+    if (u.direksiId !== undefined) dbUpdates.direksi_id = u.direksiId;
     if (u.locationId !== undefined) dbUpdates.location_id = u.locationId;
     if (u.locationName !== undefined) dbUpdates.location_name = u.locationName;
     if (u.signature !== undefined) dbUpdates.signature = u.signature;
@@ -298,6 +321,8 @@ export const getManagedEmployeeIds = async (superiorId: string): Promise<string[
         e.kaUnitId === superiorId ||
         e.managerId === superiorId ||
         e.supervisorId === superiorId ||
+        e.direksiId === superiorId ||
+        e.bphId === superiorId ||
         e.dirutId === superiorId
     ).map(e => e.id);
 };

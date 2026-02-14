@@ -55,9 +55,9 @@ const PresensiComponent: React.FC = () => {
 
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimesData | null>(null);
   const [prayerTimesLoading, setPrayerTimesLoading] = useState(true);
-  const [statusMessage, setStatusMessage] = useState<{ text: string, type: 'info' | 'success' | 'error' } | null>(null);
   const [activePrayerId, setActivePrayerId] = useState<string | null>(null);
   const [activityAttendance, setActivityAttendance] = useState<Attendance>({});
+  const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
   const [isLoadingActivities, setIsLoadingActivities] = useState(() => {
     // 🔥 Optimization: Instant feel if store already has data
     const store = useActivityStore.getState();
@@ -245,10 +245,7 @@ const PresensiComponent: React.FC = () => {
     return converted;
   }, [loggedInEmployee, allUsersData]);
 
-  const showMessage = (text: string, type: 'info' | 'success' | 'error' = 'info') => {
-    setStatusMessage({ text, type });
-    setTimeout(() => setStatusMessage(null), 3000);
-  };
+  // No-op for removed showMessage function
 
   const { attendedCount, totalWajibCount } = useMemo(() => {
     const attended = Object.values(prayerAttendance).filter(a => a.status === 'hadir').length;
@@ -256,14 +253,22 @@ const PresensiComponent: React.FC = () => {
   }, [prayerAttendance, prayersToDisplay]);
 
   const handlePrayerSubmit = async (prayerId: string, status: 'hadir' | 'tidak-hadir', reason: string | null = null, isLate: boolean = false) => {
-    if (!loggedInEmployee) return;
+    if (isSubmitting) return;
+    setIsSubmitting(prayerId);
+
+    if (!loggedInEmployee) {
+      addToast('Sesi kedaluwarsa. Silakan login kembali.', 'error');
+      setIsSubmitting(null);
+      return;
+    }
+
     try {
-      showMessage(status === 'hadir' ? '⌛ Mencatat kehadiran...' : '⌛ Mencatat alasan...', 'info');
       const dateStr = getTodayLocalDateString();
       const entityId = `${prayerId}-${dateStr}`;
 
       // 1. Save to Database
       await submitAttendance(loggedInEmployee.id, entityId, status, reason, isLate);
+
 
       // 2. Prepare timestamp for frontend
       const nowTs = Date.now();
@@ -333,20 +338,25 @@ const PresensiComponent: React.FC = () => {
         await updateMonthlyProgress(loggedInEmployee.id, monthKey, updatedEmployee.monthlyActivities[monthKey]);
       }
 
-      showMessage(status === 'hadir' ? '✅ Presensi sholat berhasil!' : '✅ Alasan tidak hadir dicatat', 'success');
+      addToast(status === 'hadir' ? '✅ Presensi sholat berhasil!' : '✅ Alasan tidak hadir dicatat', 'success');
       refreshActivityStats();
     } catch (error: any) {
-      showMessage(`❌ Gagal: ${error.message || 'Terjadi kesalahan'}`, 'error');
+      addToast(`❌ Gagal: ${error.message || 'Terjadi kesalahan'}`, 'error');
+    } finally {
+      setIsSubmitting(null);
     }
   };
 
   const handleActivitySubmit = async (activityId: string, status: 'hadir' | 'tidak-hadir', reason: string | null = null) => {
     if (!loggedInEmployee) return;
     const isTeam = activityId.startsWith('team-');
-    showMessage('⌛ Memproses presensi...', 'info');
+
     try {
       if (isTeam) {
-        if (status === 'tidak-hadir') { showMessage('Hanya presensi HADIR yang dicatat untuk sesi tim.', 'error'); return; }
+        if (status === 'tidak-hadir') {
+          addToast('Hanya presensi HADIR yang dicatat untuk sesi tim.', 'error');
+          return;
+        }
         const sessionId = activityId.replace('team-', '');
         const session = teamAttendanceSessions.find(s => s.id === sessionId);
         if (!session) throw new Error('Sesi tidak ditemukan');
@@ -397,24 +407,52 @@ const PresensiComponent: React.FC = () => {
         }
       }
       setActivityAttendance(prev => ({ ...prev, [activityId]: { status: status as any, submitted: true, timestamp: Date.now() } }));
-      showMessage('✅ Presensi berhasil dicatat!', 'success');
+      addToast('✅ Presensi berhasil dicatat!', 'success');
       refreshActivityStats();
     } catch (error: any) {
-      showMessage(`❌ Gagal: ${error.message}`, 'error');
+      addToast(`❌ Gagal: ${error.message}`, 'error');
     }
   };
 
   const handleTadarusSubmit = async (date: string, category: TadarusRequest['category'], notes: string) => {
     if (!loggedInEmployee?.id) return;
-    if (!loggedInEmployee.mentorId) {
-      addToast('Gagal: Mentor Anda belum diatur di sistem.', 'error');
-      throw new Error('No mentor');
+
+    // Determine Target Reviewer based on Category
+    // KIE & Doa Bersama -> Atasan Langsung (KaUnit/Supervisor)
+    // Others -> Mentor
+    const categoryUpper = category?.toUpperCase() || '';
+    const isAtasanReview = categoryUpper === 'KIE' || categoryUpper === 'DOA BERSAMA' || categoryUpper === 'DOA BERSAMA';
+
+    let targetReviewerId = loggedInEmployee.mentorId;
+    let targetReviewerRole = 'Mentor';
+
+    if (isAtasanReview) {
+      // Prioritize KaUnit -> Supervisor -> Manager -> Fallback to Mentor
+      if (loggedInEmployee.kaUnitId) {
+        targetReviewerId = loggedInEmployee.kaUnitId;
+        targetReviewerRole = 'Atasan Langsung';
+      } else if (loggedInEmployee.supervisorId) {
+        targetReviewerId = loggedInEmployee.supervisorId;
+        targetReviewerRole = 'Supervisor';
+      } else if (loggedInEmployee.managerId) {
+        targetReviewerId = loggedInEmployee.managerId;
+        targetReviewerRole = 'Manager';
+      } else {
+        // Fallback to mentor if no atasan found (better than failing)
+        targetReviewerId = loggedInEmployee.mentorId;
+        targetReviewerRole = 'Mentor (Fallback)';
+      }
+    }
+
+    if (!targetReviewerId) {
+      addToast(`Gagal: ${targetReviewerRole} Anda belum diatur di sistem via Profil.`, 'error');
+      throw new Error('No reviewer assigned');
     }
 
     try {
       const newRequest: TadarusRequest = {
         menteeId: loggedInEmployee.id,
-        mentorId: loggedInEmployee.mentorId,
+        mentorId: targetReviewerId, // Assign to the determined reviewer
         date, category, notes,
         id: `${loggedInEmployee.id}-${date}-${category || 'tadarus'}-${Date.now().toString().slice(-4)}`,
         menteeName: loggedInEmployee.name,
@@ -424,18 +462,18 @@ const PresensiComponent: React.FC = () => {
 
       try {
         await createNotification({
-          userId: loggedInEmployee.mentorId,
+          userId: targetReviewerId, // Notify the determined reviewer
           type: 'tadarus_request',
           title: `Persetujuan ${category || 'Sesi'}`,
           message: `${loggedInEmployee.name} mengajukan kehadiran untuk ${category || 'kegiatan'} tgl ${new Date(date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}.`,
-          linkTo: '/aktifitas-saya?tab=panel-mentor&subview=persetujuan' as any,
+          linkTo: '/persetujuan' as any, // Point directly to Persetujuan page
           relatedEntityId: newRequest.id
         });
       } catch (noteErr) {
         console.error("Notification failed but request succeeded", noteErr);
       }
 
-      addToast('Permintaan berhasil dikirim', 'success');
+      addToast('Permintaan berhasil dikirim ke ' + targetReviewerRole, 'success');
     } catch (error: any) {
       addToast(error.message || 'Gagal mengirim permintaan', 'error');
       throw error;
@@ -555,6 +593,7 @@ const PresensiComponent: React.FC = () => {
                   onTidakHadir={() => openModal(prayer.id, prayer.name, 'prayer')}
                   onUbah={() => { }}
                   isAdmin={false}
+                  loading={isSubmitting === prayer.id}
                 />
               );
             })}

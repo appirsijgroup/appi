@@ -219,7 +219,7 @@ const Profile: React.FC<ProfileProps> = ({ employee, allUsersData, sunnahIbadahL
             systemRoles.push({ label: 'Supervisor', icon: Eye, colorClasses: 'bg-cyan-500/20 text-cyan-300' });
         }
         if (employee.canBeKaUnit) {
-            systemRoles.push({ label: 'Ka. Unit', icon: Tag, colorClasses: 'bg-lime-500/20 text-lime-300' });
+            systemRoles.push({ label: 'Atasan Langsung', icon: Tag, colorClasses: 'bg-lime-500/20 text-lime-300' });
         }
 
         return { functionalRolesToDisplay: functionalRoles, systemRolesToDisplay: systemRoles };
@@ -389,6 +389,28 @@ const Profile: React.FC<ProfileProps> = ({ employee, allUsersData, sunnahIbadahL
                         <p className="wrap-break-word"><strong className="text-blue-200 w-20 inline-block shrink-0">Unit</strong>: <span className="break-all">{employee.unit}</span></p>
                         <p className="wrap-break-word"><strong className="text-blue-200 w-20 inline-block shrink-0">Bagian</strong>: <span className="break-all">{employee.bagian}</span></p>
                     </div>
+
+                    {(employee.mentorId || employee.kaUnitId) && (
+                        <div className="mt-4 pt-4 border-t border-white/10 text-left px-4">
+                            <h3 className="font-semibold text-white mb-2 text-sm uppercase tracking-wider">Relasi Pembimbing</h3>
+                            <div className="space-y-3">
+                                {employee.mentorId && (
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] text-orange-300 font-bold uppercase">Mentor</span>
+                                        <span className="text-white font-medium">{employee.mentorName || employee.mentorId}</span>
+                                        {employee.mentorName && <span className="text-[10px] text-gray-400 font-mono">{employee.mentorId}</span>}
+                                    </div>
+                                )}
+                                {employee.kaUnitId && (
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] text-lime-300 font-bold uppercase">Atasan Langsung</span>
+                                        <span className="text-white font-medium">{employee.kaUnitName || employee.kaUnitId}</span>
+                                        {employee.kaUnitName && <span className="text-[10px] text-gray-400 font-mono">{employee.kaUnitId}</span>}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {(functionalRolesToDisplay.length > 0 || systemRolesToDisplay.length > 0) && (
                         <div className="mt-4 pt-4 border-t border-white/10 text-left">

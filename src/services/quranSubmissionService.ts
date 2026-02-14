@@ -163,3 +163,32 @@ export const getTotalAyahsRead = async (
     return 0;
   }
 };
+
+/**
+ * Convert Quran submissions/history to Mutabaah activities format
+ */
+export const convertQuranSubmissionsToActivities = async (userId: string): Promise<Record<string, Record<string, Record<string, boolean>>>> => {
+  try {
+    const submissions = await getQuranSubmissions(userId);
+    const result: Record<string, Record<string, Record<string, boolean>>> = {};
+
+    submissions.forEach((submission) => {
+      const dateStr = submission.submissionDate; // YYYY-MM-DD
+      if (!dateStr) return;
+
+      const monthKey = dateStr.substring(0, 7); // YYYY-MM
+      const dayKey = dateStr.substring(8, 10); // DD
+
+      if (!result[monthKey]) result[monthKey] = {};
+      if (!result[monthKey][dayKey]) result[monthKey][dayKey] = {};
+
+      // Mark the 'baca_alquran_buku' activity as completed
+      result[monthKey][dayKey]['baca_alquran_buku'] = true;
+    });
+
+    return result;
+  } catch (error) {
+    console.error('convertQuranSubmissionsToActivities error:', error);
+    return {};
+  }
+};
