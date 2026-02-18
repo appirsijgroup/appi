@@ -637,16 +637,42 @@ export const RiwayatPengajuan: React.FC<{
 
     const safeFormatDate = (dateStr: string | null | undefined) => {
         if (!dateStr) return '-';
-        const d = new Date(dateStr + 'T12:00:00Z');
-        if (isNaN(d.getTime())) return dateStr;
-        return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+        // Try to handle "YYYY-MM-DD" or similar
+        try {
+            const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T12:00:00Z');
+            if (isNaN(d.getTime())) return dateStr; // Return raw string if invalid
+            return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+        } catch (e) {
+            return dateStr;
+        }
     };
 
     const safeFormatDateTime = (val: string | number | null | undefined) => {
         if (!val) return '-';
-        const d = typeof val === 'number' ? new Date(val) : new Date(val);
-        if (isNaN(d.getTime())) return '-';
-        return d.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        
+        try {
+            let d: Date;
+            if (typeof val === 'number') {
+                // If it looks like seconds (less than year 2286 in milliseconds), convert to ms
+                const timestamp = val < 10000000000 ? val * 1000 : val;
+                d = new Date(timestamp);
+            } else {
+                // Handle common SQL format "YYYY-MM-DD HH:mm:ss" by replacing space with T
+                const formattedStr = val.replace(' ', 'T');
+                d = new Date(formattedStr);
+            }
+
+            if (isNaN(d.getTime())) {
+                // One last try: if it's a string, just try raw new Date()
+                const fallbackDate = new Date(val);
+                if (isNaN(fallbackDate.getTime())) return String(val); // Return raw value if still invalid
+                d = fallbackDate;
+            }
+
+            return d.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        } catch (e) {
+            return String(val);
+        }
     };
 
     const combinedHistory = useMemo(() => {
