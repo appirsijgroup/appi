@@ -57,8 +57,8 @@ export async function POST(request: NextRequest) {
         await writeFile(fullFilePath, buffer);
 
         // Generate public URL
-        // Format: /uploads/{bucket}/{filePath}
-        const publicUrl = `/uploads/${bucket}/${filePath}`;
+        // Format: /api/storage/serve?bucket={bucket}&path={filePath}
+        const publicUrl = `/api/storage/serve?bucket=${bucket}&path=${filePath}`;
 
         return NextResponse.json({
             success: true,

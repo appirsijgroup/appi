@@ -71,6 +71,6 @@ export const deleteSignature = async (employeeId: string): Promise<void> => {
 
 // Get signature URL for employee (if exists)
 export const getSignatureUrl = (employeeId: string): string => {
-  // Returns the expected local path
-  return `/uploads/signatures/${employeeId}/${employeeId}-signature.png`;
+  // Returns the expected local path via serving API
+  return `/api/storage/serve?bucket=signatures&path=${employeeId}/${employeeId}-signature.png`;
 };
