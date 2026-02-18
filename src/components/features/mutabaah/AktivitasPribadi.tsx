@@ -652,13 +652,22 @@ export const RiwayatPengajuan: React.FC<{
         
         try {
             let d: Date;
+            let numericVal: number | null = null;
+
+            // Check if it's a number or a string that contains only digits
             if (typeof val === 'number') {
+                numericVal = val;
+            } else if (typeof val === 'string' && /^\d+$/.test(val)) {
+                numericVal = Number(val);
+            }
+
+            if (numericVal !== null) {
                 // If it looks like seconds (less than year 2286 in milliseconds), convert to ms
-                const timestamp = val < 10000000000 ? val * 1000 : val;
+                const timestamp = numericVal < 10000000000 ? numericVal * 1000 : numericVal;
                 d = new Date(timestamp);
             } else {
                 // Handle common SQL format "YYYY-MM-DD HH:mm:ss" by replacing space with T
-                const formattedStr = val.replace(' ', 'T');
+                const formattedStr = String(val).replace(' ', 'T');
                 d = new Date(formattedStr);
             }
 
