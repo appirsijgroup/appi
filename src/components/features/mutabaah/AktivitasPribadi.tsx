@@ -86,6 +86,13 @@ const MonthlySubmissionPanel: React.FC<{
         </div>
     );
 };
+const MOTIVATIONAL_MESSAGES = [
+    "Target bulan ini telah tercapai. Pertahankan konsistensi Anda dalam berliterasi.",
+    "Anda telah memenuhi target bacaan bulan ini. Kontribusi ini merupakan kemajuan yang baik.",
+    "Target telah terpenuhi. Kedisiplinan Anda dalam menyelesaikan program ini sangat dihargai.",
+    "Program membaca bulan ini telah tuntas. Terus tingkatkan kompetensi Anda."
+];
+
 const ReadingActivityCard: React.FC<{
     employee: Employee;
     onLogBookReading: (bookTitle: string, pagesRead: string, dateCompleted: string) => void;
@@ -178,17 +185,10 @@ const ReadingActivityCard: React.FC<{
         }
     };
 
-    const motivationalMessages = [
-        "Target bulan ini telah tercapai. Pertahankan konsistensi Anda dalam berliterasi.",
-        "Anda telah memenuhi target bacaan bulan ini. Kontribusi ini merupakan kemajuan yang baik.",
-        "Target telah terpenuhi. Kedisiplinan Anda dalam menyelesaikan program ini sangat dihargai.",
-        "Program membaca bulan ini telah tuntas. Terus tingkatkan kompetensi Anda."
-    ];
-
     const randomMessage = useMemo(() => {
         // Use employee ID as seed for consistent message per user
         const seed = employee.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        return motivationalMessages[seed % motivationalMessages.length];
+        return MOTIVATIONAL_MESSAGES[seed % MOTIVATIONAL_MESSAGES.length];
     }, [employee.id]);
 
     return (
@@ -635,6 +635,20 @@ export const RiwayatPengajuan: React.FC<{
 }> = ({ employeeId, tadarusRequests, missedPrayerRequests, monthlyReportSubmissions }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
 
+    const safeFormatDate = (dateStr: string | null | undefined) => {
+        if (!dateStr) return '-';
+        const d = new Date(dateStr + 'T12:00:00Z');
+        if (isNaN(d.getTime())) return dateStr;
+        return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+    };
+
+    const safeFormatDateTime = (val: string | number | null | undefined) => {
+        if (!val) return '-';
+        const d = typeof val === 'number' ? new Date(val) : new Date(val);
+        if (isNaN(d.getTime())) return '-';
+        return d.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    };
+
     const combinedHistory = useMemo(() => {
         // 1. Map Tadarus Requests
         const tadarus = (tadarusRequests || [])
@@ -643,7 +657,7 @@ export const RiwayatPengajuan: React.FC<{
                 id: r.id,
                 type: 'Tadarus/BBQ' as const,
                 date: r.date,
-                periode: `${r.category || 'Tadarus'} (${new Date(r.date + 'T12:00:00Z').toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })})`,
+                periode: `${r.category || 'Tadarus'} (${safeFormatDate(r.date)})`,
                 submittedAt: r.requestedAt,
                 status: r.status,
                 notes: r.notes || '-',
@@ -657,7 +671,7 @@ export const RiwayatPengajuan: React.FC<{
                 id: r.id,
                 type: 'Presensi Terlewat' as const,
                 date: r.date,
-                periode: `${r.prayerName} (${new Date(r.date + 'T12:00:00Z').toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })})`,
+                periode: `${r.prayerName} (${safeFormatDate(r.date)})`,
                 submittedAt: r.requestedAt,
                 status: r.status,
                 notes: r.reason || r.mentorNotes || '-',
@@ -769,7 +783,7 @@ export const RiwayatPengajuan: React.FC<{
                         {filteredHistory.length > 0 ? filteredHistory.map(item => (
                             <tr key={item.id} className="border-b border-gray-700 hover:bg-white/5 transition-colors">
                                 <td className="px-4 py-3 whitespace-nowrap">
-                                    {item.submittedAt ? new Date(item.submittedAt).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
+                                    {safeFormatDateTime(item.submittedAt)}
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap">
                                     <span className={`px-2 py-1 rounded-full text-[10px] font-bold tracking-tight 
